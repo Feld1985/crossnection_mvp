@@ -1,0 +1,14 @@
+{# draft_narrative.md.j2 #}
+# 📊 Draft Root-Cause Narrative for {{ kpi }}
+
+## Top-{{ top_drivers|length }} Influencing Drivers
+| Rank | Driver | Effect Size | p-value |
+|------|--------|-------------|---------|
+{% for d in top_drivers -%}
+| {{ loop.index }} | {{ d.driver_name }} | {{ '%.3f'|format(d.effect_size) }} | {{ '%.3g'|format(d.p_value) }} |
+{% endfor %}
+
+## Outlier Check
+{{ outlier_summary }}
+
+_Please mark each driver as **relevant**, **obvious**, or **irrelevant** and add comments if needed._

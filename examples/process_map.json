@@ -1,0 +1,1 @@
+{ "phases": { "A": ["1","2"], "B": ["3"] }, "drivers": { "1": "speed", "2": "temp", "3": "pressure" } }

@@ -1,13 +1,98 @@
-tommaso_task:
-  description: >
-    Riflettere su se stessi per generare comicità
-  expected_output: >
-    Una lista di 10 bullet points di battute sulle disgrazie umane e della propria vita
-  agent: tommaso
+# CrewAI task configuration – Crossnection MVP (8 tasks)
+# Each task is atomic, idempotent and mapped to one of the three agents.
 
-marco_task:
-  description: >
-    Rivedere gli spunti comici per renderli appetibili al pubblico in TV
+# ─────────────────────────────────────────────────────────────────────────────
+# DATA AGENT TASKS
+# ─────────────────────────────────────────────────────────────────────────────
+
+profile_validate_dataset:
+  agent: data_agent
+  description: |
+    Profile each uploaded CSV, validate schema consistency, detect missing
+    values and basic anomalies. Produce a structured `data_report.json` summarising findings.
+  output_key: data_report
   expected_output: >
-    Uno script per la televisione lungo almeno 1500 caratteri
-  agent: marco
+    A JSON-formatted report with schema validation results, data types,
+    null counts, and anomaly flags for each column.
+
+join_key_strategy:
+  agent: data_agent
+  description: |
+    Analyze data_report to discover or generate a unique join-key
+    that can correlate all driver datasets. If no clear key, propose matching rules.
+  input_key:
+    - data_report
+  output_key: join_key_strategy
+  expected_output: >
+    A strategy object defining the join key or rules for composite/fuzzy merging.
+
+clean_normalize_dataset:
+  agent: data_agent
+  description: |
+    Apply cleaning rules (imputations, type conversions) and merge all driver
+    datasets into a single table using the join-key strategy.
+  input_key:
+    - join_key_strategy
+    - data_report
+  output_key: unified_dataset
+  expected_output: >
+    A cleaned, normalized, relational dataset (CSV or table) ready for analysis.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STATS AGENT TASKS
+# ─────────────────────────────────────────────────────────────────────────────
+
+compute_correlations:
+  agent: stats_agent
+  description: |
+    Compute pairwise statistical correlations between each driver and the KPI,
+    including significance tests.
+  input_key: unified_dataset      # CrewAI fornirà il CSV come stringa
+  tool_args:
+    mode: correlation
+    kpi: "{{ kpi }}"
+  output_key: correlation_matrix
+
+rank_impact:
+  agent: stats_agent
+  description: |
+    Rank drivers by their impact on the KPI based on correlation strength
+    and statistical significance.
+  input_key: correlation_matrix
+  output_key: impact_ranking
+
+detect_outliers:
+  agent: stats_agent
+  description: |
+    Identify outliers in the driver datasets and flag data points that may
+    distort the analysis.
+  input_key: unified_dataset
+  output_key: outlier_report
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXPLAIN AGENT TASKS
+# ─────────────────────────────────────────────────────────────────────────────
+
+draft_root_cause_narrative:
+  agent: explain_agent
+  description: |
+    Generate a draft narrative of the top root causes, combining impact_ranking
+    and outlier_report into coherent insights.
+  input_key:
+    - impact_ranking
+    - outlier_report
+  output_key: narrative_draft
+  human_input: true
+  expected_output: >
+    A markdown-formatted draft report listing prioritized root causes with
+    explanations and statistical annotations.
+
+finalize_root_cause_report:
+  agent: explain_agent
+  description: |
+    Incorporate user feedback from the draft phase and produce the final
+    validated root-cause report.
+  input_key: narrative_draft
+  output_key: root_cause_report
+  expected_output: >
+    A finalized markdown or JSON report of root causes, ready for export or UI rendering.

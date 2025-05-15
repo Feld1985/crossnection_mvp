@@ -1,15 +1,62 @@
-tommaso:
-  role: >
-    Comico di basso livello
-  goal: >
-    Inventare battute ganze
-  backstory: >
-    Comico di quinta categoria che è fallito e che è stato costretto a umiliarsi nei locali di Firenze
+# CrewAI agent configuration – Crossnection MVP (Data, Stats, Explain)
+# Compatible with modern crewai YAML (no root "agents:" block)
 
-marco:
-  role: >
-    Impresario
-  goal: >
-    Far divetnare le battute degli script teatrali
-  backstory: >
-    Un uomo di successo che per filantropia aiuta i disgraziati
+# ─────────────────────────────────────────────────────────────────────────────
+# DATA AGENT – integrates & cleans user‑provided driver datasets
+# ─────────────────────────────────────────────────────────────────────────────
+
+data_agent:
+  class_path: crossnection.agents.data_agent.DataAgent  # thin subclass adds join‑key discovery
+  role: Data Integration & Validation
+  goal: |
+    Ingest user‑uploaded CSV driver datasets, profile & validate their schema,
+    discover (or synthesise) a unique join‑key, and output a single cleaned,
+    normalised table ready for statistical analysis.
+  llm:
+    model: gpt-4o-mini
+    temperature: 0.0
+  tools:
+    - cross_data_profiler
+  memory:
+    strategy: vectorstore
+    ttl: 7776000   # 90 days expressed in seconds
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STATS AGENT – computes correlations & ranking
+# ─────────────────────────────────────────────────────────────────────────────
+
+stats_agent:
+  class_path: crossnection.agents.stats_agent.StatsAgent
+  role: Statistical Insight Generator
+  goal: |
+    Perform multivariate statistical analysis on the unified dataset to
+    correlate each driver with the target KPI, rank their impact, and detect
+    outliers and spurious relationships.
+  llm:
+    model: gpt-4o-mini
+    temperature: 0.0
+  tools:
+    - cross_stat_engine
+  memory:
+    strategy: episodic
+    ttl: 7776000
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXPLAIN AGENT – crafts human‑validated narratives
+# ─────────────────────────────────────────────────────────────────────────────
+
+explain_agent:
+  class_path: crossnection.agents.explain_agent.ExplainAgent
+  role: Insight Narrator & Validator
+  goal: |
+    Convert statistical findings into clear root‑cause narratives, present a
+    draft to the user for business‑sense validation (human‑in‑the‑loop), then
+    issue the final approved report.
+  llm:
+    model: gpt-4o-mini
+    temperature: 0.1
+  tools:
+    - cross_insight_formatter
+  memory:
+    strategy: chat
+    ttl: 2592000   # 30 days in seconds
