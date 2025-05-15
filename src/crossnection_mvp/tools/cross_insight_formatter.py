@@ -1,4 +1,4 @@
-"""crossnection/tools/cross_insight_formatter.py
+"""crossnection_mvp/tools/cross_insight_formatter.py
 
 Custom CrewAI Tool: CrossInsightFormatterTool
 ============================================

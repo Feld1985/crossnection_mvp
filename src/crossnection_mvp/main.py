@@ -28,7 +28,7 @@ import typer
 from rich.console import Console
 from rich.traceback import install as rich_install
 
-from crossnection.crew import CrossnectionMvpCrew
+from crossnection_mvp.crew import CrossnectionMvpCrew
 
 # Pretty tracebacks for easier debugging
 rich_install(show_locals=True)

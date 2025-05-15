@@ -23,7 +23,7 @@ CONFIG_DIR = Path(__file__).resolve().parent / "config"
 AGENTS_FILE = CONFIG_DIR / "agents.yaml"
 TASKS_FILE = CONFIG_DIR / "tasks.yaml"
 # Updated fully-qualified Flow reference
-FLOW_NAME = "crossnection.flows.root_cause_flow:ROOT_CAUSE_FLOW"
+FLOW_NAME = "crossnection_mvp.flows.root_cause_flow:root_cause_flow"
 
 
 class CrossnectionMvpCrew:

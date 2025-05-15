@@ -1,4 +1,4 @@
-"""crossnection/tools/cross_data_profiler.py
+"""crossnection_mvp/tools/cross_data_profiler.py
 
 Custom CrewAI Tool: **CrossDataProfilerTool**
 -------------------------------------------------
@@ -11,9 +11,9 @@ Design notes
 ~~~~~~~~~~~~
 * Built on **pandas** for ETL and **great_expectations** for validation.
 * Returns two artefacts as a dict:  
-    - `unified_dataset` (pandas.DataFrame)  
-    - `data_report` (python dict serialisable as JSON)
-* CrewAI automatically serialises / deserialises pandas objects when passed
+    - `unified_dataset_csv` (string in CSV format)  
+    - `data_report_json` (JSON string)
+* CrewAI automatically serialises / deserialises when passed
   between tasks (falls back to CSV in Flow context if needed).
 """
 from __future__ import annotations
@@ -37,38 +37,56 @@ class CrossDataProfilerTool(Tool):
     name: str = "cross_data_profiler"
     description: str = (
         "Profiles CSV driver datasets, validates schema, discovers/creates a join‑key, "
-        "cleans & normalises the data, then returns a DataFrame (`unified_dataset`) and "
-        "a structured `data_report`."
+        "cleans & normalises the data, then returns unified data and a "
+        "structured report."
     )
 
     # ------------------------------------------------------------------
     # Public API (called by agents)
     # ------------------------------------------------------------------
 
-    def run(self, csv_paths: List[str | Path]) -> Dict[str, Any]:
+    def run(self, *, csv_folder: str | Path, kpi: str, mode: str = "full_pipeline") -> Dict[str, Any]:
         """Main entry‑point expected by CrewAI.
 
         Parameters
         ----------
-        csv_paths : list[str|Path]
-            Paths to the CSV files representing each driver. Each file must have
+        csv_folder : str | Path
+            Directory containing the CSV files representing each driver. Each file must have
             at least a numeric `value` column and ideally a common key.
+        kpi : str
+            Name of the KPI column (just stored in the report; not used here).
+        mode : str
+            Execution mode: 'profile_only', 'join_key_only', 'clean_only', or 'full_pipeline'
 
         Returns
         -------
         dict
             {
-              "unified_dataset": pandas.DataFrame,
-              "data_report": dict (JSON‑serialisable)
+              "unified_dataset_csv": str,
+              "data_report_json": str
             }
         """
+        csv_folder = Path(csv_folder)
+        if not csv_folder.is_dir():
+            raise FileNotFoundError(f"CSV directory not found: {csv_folder}")
+            
+        # Get all CSV files in the directory
+        csv_paths = list(csv_folder.glob("*.csv"))
+        if not csv_paths:
+            raise ValueError(f"No CSV files found in {csv_folder}")
+            
+        # Load dataframes
         dataframes = [pd.read_csv(p) for p in csv_paths]
         profile = self._profile_frames(dataframes, csv_paths)
 
         key = self._discover_join_key(dataframes, profile)
         unified = self._merge_and_clean(dataframes, key)
 
-        return {"unified_dataset": unified, "data_report": profile}
+        # Return artifacts in the expected format
+        return {
+            "unified_dataset_csv": unified.to_csv(index=False),
+            "data_report_json": json.dumps(profile, ensure_ascii=False, indent=2)
+        }
 
     # ------------------------------------------------------------------
     # Internal helpers

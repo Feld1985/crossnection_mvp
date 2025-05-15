@@ -15,7 +15,7 @@ import logging
 from typing import Any, Dict, Optional
 
 import crewai as cr
-from crossnection.tools.cross_insight_formatter import CrossInsightFormatterTool
+from crossnection_mvp.tools.cross_insight_formatter import CrossInsightFormatterTool
 
 logger = logging.getLogger(__name__)
 

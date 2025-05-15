@@ -21,7 +21,7 @@ import logging
 import pandas as pd
 
 import crewai as cr
-from crossnection.tools.cross_stat_engine import CrossStatEngineTool
+from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
 
 logger = logging.getLogger(__name__)
 

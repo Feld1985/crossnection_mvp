@@ -1,0 +1,19 @@
+{# src/crossnection/tools/templates/final\_narrative.md.j2 #}
+
+# 📘 Final Root-Cause Report for {{ kpi }}
+
+## Validated Top-{{ top\_drivers|length }} Drivers
+
+| Rank                         | Driver               | Effect Size | p-value                                                      | Business Validation |                       |                                                             |
+| ---------------------------- | -------------------- | ----------- | ------------------------------------------------------------ | ------------------- | --------------------- | ----------------------------------------------------------- |
+| {% for d in top\_drivers -%} |                      |             |                                                              |                     |                       |                                                             |
+| {{ loop.index }}             | {{ d.driver\_name }} | {{ '%.3f'   | format(d.score if d.score is defined else d.effect\_size) }} | {{ '%.3g'           | format(d.p\_value) }} | {{ d.feedback.status if d.feedback is defined else 'N/A' }} |
+| {% endfor %}                 |                      |             |                                                              |                     |                       |                                                             |
+
+## Outlier Check
+
+{{ outlier\_summary }}
+
+## User Notes
+
+{{ user\_notes if user\_notes else 'No additional comments provided.' }}

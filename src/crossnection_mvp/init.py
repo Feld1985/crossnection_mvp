@@ -22,6 +22,6 @@ def get_crew():  # noqa: D401 – simple function
     """Return a lazily‑constructed instance of :class:`CrossnectionMvpCrew`."""
 
     # Local import to avoid heavy deps at import‑time
-    from crossnection.crew import CrossnectionMvpCrew  # type: ignore
+    from crossnection_mvp.crew import CrossnectionMvpCrew  # type: ignore
 
     return CrossnectionMvpCrew()

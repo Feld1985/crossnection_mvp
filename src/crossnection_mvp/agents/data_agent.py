@@ -18,7 +18,7 @@ import logging
 import pandas as pd
 
 import crewai as cr
-from crossnection.tools.cross_data_profiler import CrossDataProfilerTool
+from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
 
 logger = logging.getLogger(__name__)
 

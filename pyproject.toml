@@ -41,7 +41,7 @@ Repository = "https://github.com/Feld1985/crossnection_mvp"
 
 [project.scripts]
 # CLI entry‑point → `crossnection`
-crossnection = "crossnection.main:cli"
+crossnection = "crossnection_mvp.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["crossnection"]

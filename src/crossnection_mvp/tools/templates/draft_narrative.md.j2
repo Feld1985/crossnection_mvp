@@ -1,14 +1,17 @@
-{# draft_narrative.md.j2 #}
+{# src/crossnection/tools/templates/draft\_narrative.md.j2 #}
+
 # 📊 Draft Root-Cause Narrative for {{ kpi }}
 
-## Top-{{ top_drivers|length }} Influencing Drivers
-| Rank | Driver | Effect Size | p-value |
-|------|--------|-------------|---------|
-{% for d in top_drivers -%}
-| {{ loop.index }} | {{ d.driver_name }} | {{ '%.3f'|format(d.effect_size) }} | {{ '%.3g'|format(d.p_value) }} |
-{% endfor %}
+## Top-{{ top\_drivers|length }} Influencing Drivers
+
+| Rank                         | Driver               | Effect Size | p-value                                                      |           |                       |
+| ---------------------------- | -------------------- | ----------- | ------------------------------------------------------------ | --------- | --------------------- |
+| {% for d in top\_drivers -%} |                      |             |                                                              |           |                       |
+| {{ loop.index }}             | {{ d.driver\_name }} | {{ '%.3f'   | format(d.score if d.score is defined else d.effect\_size) }} | {{ '%.3g' | format(d.p\_value) }} |
+| {% endfor %}                 |                      |             |                                                              |           |                       |
 
 ## Outlier Check
-{{ outlier_summary }}
 
-_Please mark each driver as **relevant**, **obvious**, or **irrelevant** and add comments if needed._
+{{ outlier\_summary }}
+
+*Please mark each driver as **relevant**, **obvious**, or **irrelevant** and add comments if needed.*
