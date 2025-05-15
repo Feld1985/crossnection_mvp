@@ -1,0 +1,13 @@
+tommaso_task:
+  description: >
+    Riflettere su se stessi per generare comicità
+  expected_output: >
+    Una lista di 10 bullet points di battute sulle disgrazie umane e della propria vita
+  agent: tommaso
+
+marco_task:
+  description: >
+    Rivedere gli spunti comici per renderli appetibili al pubblico in TV
+  expected_output: >
+    Uno script per la televisione lungo almeno 1500 caratteri
+  agent: marco

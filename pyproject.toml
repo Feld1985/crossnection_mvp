@@ -1,0 +1,23 @@
+[project]
+name = "crossnection_mvp"
+version = "0.1.0"
+description = "crossnection_mvp using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "crewai[tools]>=0.119.0,<1.0.0"
+]
+
+[project.scripts]
+crossnection_mvp = "crossnection_mvp.main:run"
+run_crew = "crossnection_mvp.main:run"
+train = "crossnection_mvp.main:train"
+replay = "crossnection_mvp.main:replay"
+test = "crossnection_mvp.main:test"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
