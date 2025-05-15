@@ -1,23 +1,45 @@
-[project]
-name = "crossnection_mvp"
-version = "0.1.0"
-description = "crossnection_mvp using crewAI"
-authors = [{ name = "Your Name", email = "you@example.com" }]
-requires-python = ">=3.10,<3.13"
-dependencies = [
-    "crewai[tools]>=0.119.0,<1.0.0"
-]
-
-[project.scripts]
-crossnection_mvp = "crossnection_mvp.main:run"
-run_crew = "crossnection_mvp.main:run"
-train = "crossnection_mvp.main:train"
-replay = "crossnection_mvp.main:replay"
-test = "crossnection_mvp.main:test"
+# Root‑Cause Discovery MVP – build configuration (Hatchling)
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.crewai]
-type = "crew"
+[project]
+name = "crossnection-mvp"
+version = "0.1.0"
+description = "Root‑Cause Discovery MVP built with CrewAI multi‑agent architecture (DataAgent, StatsAgent, ExplainAgent)."
+authors = [{ name = "Marco Pericci", email = "marco@marcopericci.com" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.9"
+
+# Runtime dependencies
+dependencies = [
+  "crewai>=0.5.0,<1.0.0",
+  "pandas>=2.2.0,<3.0.0",
+  "scipy>=1.12.0,<2.0.0",
+  "statsmodels>=0.14,<1.0",
+  "great_expectations>=0.17.22,<1.0",
+  "matplotlib>=3.8,<4.0",
+  "python-dotenv>=1.0,<2.0"
+]
+
+[project.optional-dependencies]
+# Development tooling
+dev = [
+  "black>=24.3",
+  "ruff>=0.4",
+  "pytest>=8.2",
+  "pytest-cov>=5.0"
+]
+
+[project.urls]
+Repository = "https://github.com/crossnection/mvp"
+Documentation = "https://crossnection.ai/docs"
+
+[project.scripts]
+# CLI entry‑point → `crossnection`
+crossnection = "crossnection.main:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["crossnection"]
