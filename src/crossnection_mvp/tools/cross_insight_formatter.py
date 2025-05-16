@@ -91,6 +91,10 @@ class CrossInsightFormatterTool:
         "Builds draft and final root-cause narratives from statistical JSON results."
     )
 
+    def __call__(self, **kwargs) -> Dict[str, Any]:
+        """Make the tool callable directly as a function."""
+        return self.run(**kwargs)
+
     # ---------------------------------------------------------------------#
     # Public API - called by tasks via CrewAI
     # ---------------------------------------------------------------------#
@@ -162,6 +166,14 @@ class CrossInsightFormatterTool:
             "top_drivers": top,
             "kpi": impact_ranking.get("kpi_name", "KPI"),
             "outlier_summary": _outlier_summary(outlier_report.get("outliers", [])),
+            "validation_instructions": """
+            Please review each driver and mark them as follows:
+            - RELEVANT: Business-critical correlation worth investigating
+            - OBVIOUS: Expected relationship, not a surprise
+            - IRRELEVANT: Statistical noise or spurious correlation
+            
+            Add comments for any specific insights or context.
+            """
         }
         return _DRAFT_TEMPLATE.render(**context)
 

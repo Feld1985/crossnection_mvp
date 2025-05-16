@@ -66,11 +66,15 @@ def run(
     }
 
     try:
-        CREW.run(inputs)
+        result = CREW.run(inputs)
         console.print("[bold green]✔ Analysis completed. Check output directory for the root‑cause report.")
-    except Exception as exc:  # noqa: BLE001 (broad ok for CLI)
+        return result
+    except Exception as exc:
         console.print(f"[bold red]✖ Error:[/bold red] {exc}")
-        raise typer.Exit(code=1) from exc
+        console.print(f"[yellow]Stack trace:[/yellow]")
+        import traceback
+        console.print(traceback.format_exc())
+        raise typer.Exit(code=1) from excpip install pyyaml
 
 
 @app.command()

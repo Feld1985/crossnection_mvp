@@ -1,17 +1,21 @@
-{# src/crossnection/tools/templates/draft\_narrative.md.j2 #}
+{# src/crossnection_mvp/tools/templates/draft_narrative.md.j2 #}
 
 # 📊 Draft Root-Cause Narrative for {{ kpi }}
 
-## Top-{{ top\_drivers|length }} Influencing Drivers
+## Top-{{ top_drivers|length }} Influencing Drivers
 
-| Rank                         | Driver               | Effect Size | p-value                                                      |           |                       |
-| ---------------------------- | -------------------- | ----------- | ------------------------------------------------------------ | --------- | --------------------- |
-| {% for d in top\_drivers -%} |                      |             |                                                              |           |                       |
-| {{ loop.index }}             | {{ d.driver\_name }} | {{ '%.3f'   | format(d.score if d.score is defined else d.effect\_size) }} | {{ '%.3g' | format(d.p\_value) }} |
-| {% endfor %}                 |                      |             |                                                              |           |                       |
+| Rank | Driver | Effect Size | p-value | Strength | Explanation |
+| ---- | ------ | ----------- | ------- | -------- | ----------- |
+{% for d in top_drivers -%}
+| {{ loop.index }} | {{ d.driver_name }} | {{ '%.3f' | format(d.score if d.score is defined else d.effect_size) }} | {{ '%.3g' | format(d.p_value) }} | {{ d.strength if d.strength is defined else 'n/a' }} | {{ d.explanation if d.explanation is defined else '' }} |
+{% endfor %}
 
 ## Outlier Check
 
-{{ outlier\_summary }}
+{{ outlier_summary }}
 
-*Please mark each driver as **relevant**, **obvious**, or **irrelevant** and add comments if needed.*
+## Validation Instructions
+
+{{ validation_instructions }}
+
+*Please mark each driver as **RELEVANT**, **OBVIOUS**, or **IRRELEVANT** and add comments if needed.*

@@ -26,20 +26,23 @@ import uuid
 
 import pandas as pd
 import great_expectations as ge
-from crewai import Tool
 
 __all__ = ["CrossDataProfilerTool"]
 
 
-class CrossDataProfilerTool(Tool):
+class CrossDataProfilerTool:
     """Validate, profile and merge driver CSV datasets."""
 
-    name: str = "cross_data_profiler"
-    description: str = (
+    name = "cross_data_profiler"
+    description = (
         "Profiles CSV driver datasets, validates schema, discovers/creates a join‑key, "
         "cleans & normalises the data, then returns unified data and a "
         "structured report."
     )
+
+    def __call__(self, csv_folder: str | Path, kpi: str, mode: str = "full_pipeline") -> Dict[str, Any]:
+        """Make the tool callable directly as a function."""
+        return self.run(csv_folder=csv_folder, kpi=kpi, mode=mode)
 
     # ------------------------------------------------------------------
     # Public API (called by agents)

@@ -3,7 +3,7 @@
 Custom CrewAI Tool: CrossStatEngineTool
 ======================================
 
-Numerical “engine” invoked by *StatsAgent* to transform the unified dataset
+Numerical "engine" invoked by *StatsAgent* to transform the unified dataset
 in tre artefatti principali:
 
 1. **correlation_matrix**  – coefficiente r (Pearson o Spearman) e p-value per
@@ -48,7 +48,7 @@ def _zscore_outliers(series: pd.Series, z_thresh: float = 3.0) -> List[int]:
 
 
 def _iqr_outliers(series: pd.Series, iqr_mult: float = 1.5) -> List[int]:
-    """Row-indices flagged by Tukey’s IQR rule."""
+    """Row-indices flagged by Tukey's IQR rule."""
     q1, q3 = np.nanpercentile(series, [25, 75])
     iqr = q3 - q1
     lower, upper = q1 - iqr_mult * iqr, q3 + iqr_mult * iqr
@@ -84,6 +84,20 @@ def impact_ranking(corr_df: pd.DataFrame, top_k: int | None = None) -> List[Dict
     r_norm = (r_abs - r_abs.min()) / (r_abs.max() - r_abs.min() + 1e-9)
     score = r_norm * -np.log10(corr_df["p_value"].clip(lower=1e-12))
     ranked = corr_df.assign(score=score).sort_values("score", ascending=False)
+    
+    # Aggiungi categoria di forza
+    for i, row in ranked.iterrows():
+        if abs(row["r"]) > 0.7:
+            ranked.at[i, "strength"] = "Strong"
+        elif abs(row["r"]) > 0.3:
+            ranked.at[i, "strength"] = "Moderate"
+        else:
+            ranked.at[i, "strength"] = "Weak"
+            
+        sign = "positive" if row["r"] > 0 else "negative"
+        significant = "statistical significance" if row["p_value"] < 0.05 else "moderate confidence"
+        ranked.at[i, "explanation"] = f"{ranked.at[i, 'strength']} {sign} relationship with {significant}"
+    
     if top_k:
         ranked = ranked.head(top_k)
     return ranked.to_dict(orient="records")
@@ -127,6 +141,10 @@ class CrossStatEngineTool:
 
     name = "cross_stat_engine"
     description = "Statistical engine: correlations, impact ranking, outlier detection."
+
+    def __call__(self, df_csv: str | bytes, kpi: str, mode: str = "correlation", top_k: int | None = 10) -> str:
+        """Make the tool callable directly as a function."""
+        return self.run(df_csv=df_csv, kpi=kpi, mode=mode, top_k=top_k)
 
     def run(
         self,
