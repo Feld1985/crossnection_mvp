@@ -34,13 +34,13 @@ class CrossnectionMvpCrew:
         with open(file_path, "r", encoding="utf-8") as file:
             return yaml.safe_load(file)
 
-    def _register_tools(self):
-        """Registra i tool personalizzati."""
+    def _create_tools(self):
+        """Crea le istanze dei tool e le restituisce."""
         from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
         from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
         from crossnection_mvp.tools.cross_insight_formatter import CrossInsightFormatterTool
         
-        # Crea istanze dei tool
+        # Crea e restituisci le istanze degli strumenti
         return {
             "cross_data_profiler": CrossDataProfilerTool(),
             "cross_stat_engine": CrossStatEngineTool(),
@@ -53,24 +53,35 @@ class CrossnectionMvpCrew:
             return self._agents
             
         agents_config = self._load_yaml(AGENTS_FILE)
-        tools = self._register_tools()
+        tools_instances = self._create_tools()
         
         for name, config in agents_config.items():
-            # Crea l'agente con i parametri della configurazione
-            agent_tools = [tools[tool_name] for tool_name in config.get("tools", [])]
+            # Prepara i tool richiesti dall'agente
+            agent_tools = []
+            if "tools" in config:
+                for tool_name in config["tools"]:
+                    if tool_name in tools_instances:
+                        agent_tools.append(tools_instances[tool_name])
             
-            # Crea l'agente usando i parametri disponibili nella tua versione
-            # Potresti dover adattare questi parametri in base alla versione di CrewAI
-            agent = cr.Agent(
-                name=name,
-                role=config.get("role", ""),
-                goal=config.get("goal", ""),
-                backstory=config.get("description", ""),  # Usa description come backstory se disponibile
-                verbose=True,
-                allow_delegation=True,
-                tools=agent_tools,
-                llm=config.get("llm", {}),
-            )
+            # Crea l'agente con i parametri disponibili
+            agent_params = {
+                "name": name,
+                "role": config.get("role", ""),
+                "goal": config.get("goal", ""),
+                "backstory": config.get("description", ""),
+                "verbose": True,
+                "tools": agent_tools,  # Passa le istanze direttamente
+            }
+            
+            # Aggiungi LLM se presente nella configurazione
+            if "llm" in config:
+                llm_config = config["llm"]
+                agent_params["llm_config"] = {
+                    "model": llm_config.get("model", "gpt-4o-mini"),
+                    "temperature": llm_config.get("temperature", 0.0)
+                }
+            
+            agent = cr.Agent(**agent_params)
             self._agents[name] = agent
             
         return self._agents
@@ -90,13 +101,18 @@ class CrossnectionMvpCrew:
             if not agent:
                 raise ValueError(f"Agent '{agent_name}' not found for task '{name}'")
             
-            # Crea l'oggetto Task con i parametri disponibili nella tua versione
-            task = cr.Task(
-                description=config.get("description", ""),
-                agent=agent,
-                expected_output=config.get("expected_output", ""),
-                human_input=config.get("human_input", False),
-            )
+            # Costruisci i parametri del task
+            task_params = {
+                "description": config.get("description", ""),
+                "agent": agent,
+                "human_input": config.get("human_input", False),
+            }
+            
+            # Aggiungi expected_output se presente
+            if "expected_output" in config:
+                task_params["expected_output"] = config["expected_output"]
+                
+            task = cr.Task(**task_params)
             tasks.append(task)
         
         self._tasks = tasks
@@ -108,13 +124,20 @@ class CrossnectionMvpCrew:
             # Costruisci gli oggetti
             tasks = self._build_tasks()
             
-            # Crea l'equipaggio - questo dovrebbe funzionare con la maggior parte delle versioni di CrewAI
-            self._crew = cr.Crew(
-                tasks=tasks,
-                verbose=True,
-                # Potrebbe essere necessario adattare questi parametri
-                process=cr.Process.sequential  # Usa cr.Process.sequential se disponibile
-            )
+            # Crea l'equipaggio
+            crew_params = {
+                "tasks": tasks,
+                "verbose": True,
+            }
+            
+            # Aggiungi process se disponibile
+            try:
+                crew_params["process"] = cr.Process.sequential
+            except AttributeError:
+                # Se Process.sequential non è disponibile, prova con una stringa
+                crew_params["process"] = "sequential"
+            
+            self._crew = cr.Crew(**crew_params)
         return self._crew
 
     # ---------------------------------------------------------------------
