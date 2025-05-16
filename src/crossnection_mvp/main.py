@@ -74,7 +74,7 @@ def run(
         console.print(f"[yellow]Stack trace:[/yellow]")
         import traceback
         console.print(traceback.format_exc())
-        raise typer.Exit(code=1) from excpip install pyyaml
+        raise typer.Exit(code=1) from exc
 
 
 @app.command()
