@@ -62,7 +62,7 @@ def run(
     inputs = {
         "kpi": kpi,
         "process_map_file": str(process_map),
-        "drivers_folder": str(drivers_dir),
+        "csv_folder": str(drivers_dir),
     }
 
     try:

@@ -24,6 +24,7 @@ import json
 import statistics
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Union
+from pydantic import BaseModel
 
 import markdown  # pip install markdown
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -83,6 +84,9 @@ def _outlier_summary(outliers: Sequence[Dict[str, Any]]) -> str:
 # Main tool class
 # ---------------------------------------------------------------------------#
 
+from typing import Annotated
+class CrossInsightFormatterToolSchema(BaseModel):
+    input: Annotated[Union[str, Dict[str, Any]], "Markdown config or feedback blob"]
 
 class CrossInsightFormatterTool(BaseTool):
     """Tool entry-point to be registered in CrewAI."""
@@ -91,6 +95,7 @@ class CrossInsightFormatterTool(BaseTool):
     description: str = (
         "Builds draft and final root-cause narratives from statistical JSON results."
     )
+    args_schema = CrossInsightFormatterToolSchema
 
     def _run(self, input: Union[str, Dict[str, Any]]) -> str:
         """

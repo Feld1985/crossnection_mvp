@@ -19,7 +19,8 @@ Design notes
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, ForwardRef
+from pydantic import BaseModel
 
 import json
 import uuid
@@ -30,7 +31,9 @@ from crewai.tools import BaseTool
 
 __all__ = ["CrossDataProfilerTool"]
 
-
+class CrossDataProfilerToolSchema(BaseModel):
+    input: Union[str, Dict[str, Any]]
+        
 class CrossDataProfilerTool(BaseTool):
     """Validate, profile and merge driver CSV datasets."""
 
@@ -40,6 +43,7 @@ class CrossDataProfilerTool(BaseTool):
         "cleans & normalises the data, then returns unified data and a "
         "structured report."
     )
+    args_schema = CrossDataProfilerToolSchema
 
     def _run(self, input: Union[str, Dict[str, Any]]) -> str:
         """

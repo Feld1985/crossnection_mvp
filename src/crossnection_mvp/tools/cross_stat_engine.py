@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Union
+from pydantic import BaseModel
 
 import numpy as np
 import pandas as pd
@@ -127,7 +128,9 @@ def outlier_report(df: pd.DataFrame, *, kpi: str) -> Dict[str, Any]:
 # CrewAI Tool wrapper
 # ---------------------------------------------------------------------------#
 
-
+class CrossStatEngineToolSchema(BaseModel):
+    input: Union[str, Dict[str, Any]]
+    
 class CrossStatEngineTool(BaseTool):
     """
     Tool registrabile in CrewAI.
@@ -142,6 +145,7 @@ class CrossStatEngineTool(BaseTool):
 
     name: str = "cross_stat_engine"
     description: str = "Statistical engine: correlations, impact ranking, outlier detection."
+    args_schema = CrossStatEngineToolSchema
 
     def _run(self, input: Union[str, Dict[str, Any]]) -> str:
         """
@@ -191,7 +195,8 @@ class CrossStatEngineTool(BaseTool):
         -------
         JSON string result – CrewAI converts to python dict automatically.
         """
-        df = pd.read_csv(pd.compat.StringIO(df_csv) if isinstance(df_csv, str) else df_csv)
+        from io import StringIO
+        df = pd.read_csv(StringIO(df_csv)) if isinstance(df_csv, str) else pd.read_csv(df_csv)
 
         if mode == "correlation":
             corr = correlation_matrix(df, kpi=kpi)

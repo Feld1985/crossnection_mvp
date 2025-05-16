@@ -10,6 +10,10 @@ profile_validate_dataset:
   description: |
     Profile each uploaded CSV, validate schema consistency, detect missing
     values and basic anomalies. Produce a structured `data_report.json` summarising findings.
+  input:
+    csv_folder: "{{ csv_folder }}"
+    kpi: "{{ kpi }}"
+    mode: "full_pipeline"
   output_key: data_report
   expected_output: >
     A JSON-formatted report with schema validation results, data types,
@@ -47,8 +51,8 @@ compute_correlations:
   description: |
     Compute pairwise statistical correlations between each driver and the KPI,
     including significance tests.
-  input_key: unified_dataset      # CrewAI fornirà il CSV come stringa
-  tool_args:
+  input:
+    df_csv: "{{ unified_dataset }}"
     mode: correlation
     kpi: "{{ kpi }}"
   output_key: correlation_matrix
