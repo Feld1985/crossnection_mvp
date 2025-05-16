@@ -1,4 +1,4 @@
-"""crossnection/flows/root_cause_flow.py
+"""crossnection_mvp/flows/root_cause_flow.py
 
 Definition of **RootCauseFlow** – the linear Flow that orchestrates all
 three agents (Data, Stats, Explain) for the Crossnection MVP.

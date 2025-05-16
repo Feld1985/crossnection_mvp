@@ -1,4 +1,4 @@
-"""Package initializer for crossnection/flows."""
+"""Package initializer for crossnection_mvp/flows."""
 
 # Expose flow definitions for easy import
 from .root_cause_flow import root_cause_flow

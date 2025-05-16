@@ -6,7 +6,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 data_agent:
-  class_path: crossnection.agents.data_agent.DataAgent  # thin subclass adds join‑key discovery
+  class_path: crossnection_mvp.agents.data_agent.DataAgent  # thin subclass adds join‑key discovery
   role: Data Integration & Validation
   goal: |
     Ingest user‑uploaded CSV driver datasets, profile & validate their schema,
@@ -26,7 +26,7 @@ data_agent:
 # ─────────────────────────────────────────────────────────────────────────────
 
 stats_agent:
-  class_path: crossnection.agents.stats_agent.StatsAgent
+  class_path: crossnection_mvp.agents.stats_agent.StatsAgent
   role: Statistical Insight Generator
   goal: |
     Perform multivariate statistical analysis on the unified dataset to
@@ -46,7 +46,7 @@ stats_agent:
 # ─────────────────────────────────────────────────────────────────────────────
 
 explain_agent:
-  class_path: crossnection.agents.explain_agent.ExplainAgent
+  class_path: crossnection_mvp.agents.explain_agent.ExplainAgent
   role: Insight Narrator & Validator
   goal: |
     Convert statistical findings into clear root‑cause narratives, present a

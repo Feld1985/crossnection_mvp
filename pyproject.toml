@@ -44,4 +44,4 @@ Repository = "https://github.com/Feld1985/crossnection_mvp"
 crossnection = "crossnection_mvp.main:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["crossnection"]
+packages = ["src/crossnection_mvp"]

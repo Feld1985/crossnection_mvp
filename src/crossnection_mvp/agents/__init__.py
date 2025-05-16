@@ -1,10 +1,10 @@
-"""crossnection/agents package
+"""crossnection_mvp/agents package
 
 Exposes shorthand import helpers for the three custom agents while ensuring
 that `class_path` references in agents.yaml resolve correctly.
 
 Example:
-    from crossnection.agents import DataAgent, StatsAgent, ExplainAgent
+    from crossnection_mvp.agents import DataAgent, StatsAgent, ExplainAgent
 """
 from __future__ import annotations
 

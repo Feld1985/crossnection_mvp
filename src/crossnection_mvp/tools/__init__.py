@@ -1,4 +1,4 @@
-"""Package initializer for crossnection/tools."""
+"""Package initializer for crossnection_mvp/tools."""
 
 # Expose all tools for CrewAI class_path resolution
 __all__ = [

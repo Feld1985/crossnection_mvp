@@ -1,4 +1,4 @@
-"""Crossnection package root.
+"""Crossnection_mvp package root.
 
 Exposes package version and convenience import for the crew builder so that
 external callers can simply do:

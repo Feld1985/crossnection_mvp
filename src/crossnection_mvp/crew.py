@@ -1,4 +1,4 @@
-"""crossnection/crew.py
+"""crossnection_mvp/crew.py
 
 Centralised builder for the Crossnection Root‑Cause Discovery MVP.
 

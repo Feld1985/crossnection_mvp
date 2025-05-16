@@ -1,4 +1,4 @@
-"""crossnection/agents/explain_agent.py
+"""crossnection_mvp/agents/explain_agent.py
 
 Concrete **ExplainAgent** for the Crossnection MVP.
 Transforms statistical artifacts produced by StatsAgent into human‑readable

@@ -1,4 +1,4 @@
-"""crossnection/agents/data_agent.py
+"""crossnection_mvp/agents/data_agent.py
 
 Fully‑functional **DataAgent** subclass used by Crossnection MVP.
 The agent is lightweight: heavy ETL lives in `CrossDataProfilerTool`, but this

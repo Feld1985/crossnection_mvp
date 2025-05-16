@@ -1,4 +1,4 @@
-"""crossnection/agents/stats_agent.py
+"""crossnection_mvp/agents/stats_agent.py
 
 Fully‑functional **StatsAgent** subclass used by Crossnection MVP.
 It orchestrates the statistical analysis on the unified dataset produced by

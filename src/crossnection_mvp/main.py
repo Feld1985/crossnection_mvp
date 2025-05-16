@@ -1,4 +1,4 @@
-"""crossnection/main.py
+"""crossnection_mvp/main.py
 
 Command‑line interface for the Crossnection Root‑Cause Discovery MVP.
 Uses **Typer** (https://typer.tiangolo.com/) to expose four sub‑commands that
@@ -19,7 +19,7 @@ Usage examples:
     crossnection replay --session-id 20250515T101500Z
 
 The CLI is also invocable via:
-    python -m crossnection.main run --kpi "..." --process-map ...
+    python -m crossnection_mvp.main run --kpi "..." --process-map ...
 """
 from pathlib import Path
 from typing import Optional
