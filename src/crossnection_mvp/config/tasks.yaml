@@ -52,6 +52,8 @@ compute_correlations:
     mode: correlation
     kpi: "{{ kpi }}"
   output_key: correlation_matrix
+  expected_output: >
+    A JSON array with driver names, correlation coefficients, and p-values.
 
 rank_impact:
   agent: stats_agent
@@ -60,6 +62,8 @@ rank_impact:
     and statistical significance.
   input_key: correlation_matrix
   output_key: impact_ranking
+  expected_output: >
+    A ranked list of drivers by their impact on the KPI based on correlation strength and significance.
 
 detect_outliers:
   agent: stats_agent
@@ -68,6 +72,8 @@ detect_outliers:
     distort the analysis.
   input_key: unified_dataset
   output_key: outlier_report
+  expected_output: >
+    A JSON report identifying outliers in driver datasets that may distort the analysis.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # EXPLAIN AGENT TASKS
