@@ -23,10 +23,11 @@ from __future__ import annotations
 import json
 import statistics
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Sequence, Union
 
 import markdown  # pip install markdown
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from crewai.tools import BaseTool
 
 # ---------------------------------------------------------------------------#
 # Jinja environment & templates
@@ -83,20 +84,53 @@ def _outlier_summary(outliers: Sequence[Dict[str, Any]]) -> str:
 # ---------------------------------------------------------------------------#
 
 
-class CrossInsightFormatterTool:
+class CrossInsightFormatterTool(BaseTool):
     """Tool entry-point to be registered in CrewAI."""
 
-    name = "cross_insight_formatter"
-    description = (
+    name: str = "cross_insight_formatter"
+    description: str = (
         "Builds draft and final root-cause narratives from statistical JSON results."
     )
 
-    def __call__(self, **kwargs) -> Dict[str, Any]:
-        """Make the tool callable directly as a function."""
-        return self.run(**kwargs)
+    def _run(self, input: Union[str, Dict[str, Any]]) -> str:
+        """
+        Main entry point required by BaseTool.
+        """
+        # Parse input if it's a string
+        if isinstance(input, str):
+            try:
+                input_data = json.loads(input)
+            except json.JSONDecodeError:
+                # Fallback for simple string inputs
+                return f"Error: Expected JSON input but got: {input}"
+        else:
+            input_data = input
+        
+        # Extract parameters 
+        impact_ranking = input_data.get("impact_ranking")
+        outlier_report = input_data.get("outlier_report")
+        feedback = input_data.get("feedback")
+        mode = input_data.get("mode", "draft")
+        k_top = input_data.get("k_top", 5)
+        output_html = input_data.get("output_html", False)
+        
+        # Run the original implementation
+        result = self.run(
+            impact_ranking=impact_ranking,
+            outlier_report=outlier_report,
+            feedback=feedback,
+            mode=mode,
+            k_top=k_top,
+            output_html=output_html
+        )
+        
+        # Convert result to string if needed by CrewAI
+        if isinstance(result, dict):
+            return json.dumps(result, ensure_ascii=False)
+        return result
 
     # ---------------------------------------------------------------------#
-    # Public API - called by tasks via CrewAI
+    # Original implementation
     # ---------------------------------------------------------------------#
 
     def run(

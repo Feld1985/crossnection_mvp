@@ -7,6 +7,7 @@ import yaml
 from typing import Any, Dict, List
 
 import crewai as cr
+from crewai.tools import BaseTool
 
 # ----------------------------------------------------------------------------
 # Percorsi di configurazione
@@ -34,7 +35,7 @@ class CrossnectionMvpCrew:
         with open(file_path, "r", encoding="utf-8") as file:
             return yaml.safe_load(file)
 
-    def _create_tools(self):
+    def _create_tools(self) -> Dict[str, BaseTool]:
         """Crea le istanze dei tool e le restituisce."""
         from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
         from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
@@ -61,7 +62,11 @@ class CrossnectionMvpCrew:
             if "tools" in config:
                 for tool_name in config["tools"]:
                     if tool_name in tools_instances:
-                        agent_tools.append(tools_instances[tool_name])
+                        tool_instance = tools_instances[tool_name]
+                        # Verifica che sia un'istanza di BaseTool
+                        if not isinstance(tool_instance, BaseTool):
+                            raise TypeError(f"Tool '{tool_name}' is not a valid BaseTool instance")
+                        agent_tools.append(tool_instance)
             
             # Crea l'agente con i parametri disponibili
             agent_params = {

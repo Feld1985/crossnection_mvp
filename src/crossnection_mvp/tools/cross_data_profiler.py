@@ -19,37 +19,63 @@ Design notes
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import json
 import uuid
 
 import pandas as pd
 import great_expectations as ge
+from crewai.tools import BaseTool
 
 __all__ = ["CrossDataProfilerTool"]
 
 
-class CrossDataProfilerTool:
+class CrossDataProfilerTool(BaseTool):
     """Validate, profile and merge driver CSV datasets."""
 
-    name = "cross_data_profiler"
-    description = (
+    name: str = "cross_data_profiler"
+    description: str = (
         "Profiles CSV driver datasets, validates schema, discovers/creates a join‑key, "
         "cleans & normalises the data, then returns unified data and a "
         "structured report."
     )
 
-    def __call__(self, csv_folder: str | Path, kpi: str, mode: str = "full_pipeline") -> Dict[str, Any]:
-        """Make the tool callable directly as a function."""
-        return self.run(csv_folder=csv_folder, kpi=kpi, mode=mode)
+    def _run(self, input: Union[str, Dict[str, Any]]) -> str:
+        """
+        Main entry‑point expected by CrewAI BaseTool.
+        
+        Arguments can be passed as JSON string or dictionary.
+        """
+        # Parse input if it's a string
+        if isinstance(input, str):
+            try:
+                input_data = json.loads(input)
+            except json.JSONDecodeError:
+                # Fallback for simple string inputs
+                input_data = {"csv_folder": input, "kpi": "Default KPI", "mode": "full_pipeline"}
+        else:
+            input_data = input
+        
+        # Extract parameters
+        csv_folder = input_data.get("csv_folder", "")
+        kpi = input_data.get("kpi", "Default KPI")
+        mode = input_data.get("mode", "full_pipeline")
+        
+        result = self.run(csv_folder=csv_folder, kpi=kpi, mode=mode)
+        
+        # Convert result to string if needed by CrewAI
+        if isinstance(result, dict):
+            return json.dumps(result, ensure_ascii=False)
+        return result
 
     # ------------------------------------------------------------------
-    # Public API (called by agents)
+    # Original implementation (called by _run)
     # ------------------------------------------------------------------
 
     def run(self, *, csv_folder: str | Path, kpi: str, mode: str = "full_pipeline") -> Dict[str, Any]:
-        """Main entry‑point expected by CrewAI.
+        """
+        Original implementation that processes CSV files.
 
         Parameters
         ----------
@@ -92,7 +118,7 @@ class CrossDataProfilerTool:
         }
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Internal helpers (unchanged)
     # ------------------------------------------------------------------
 
     def _profile_frames(self, frames: List[pd.DataFrame], paths: List[str | Path]) -> Dict[str, Any]:

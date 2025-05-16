@@ -22,12 +22,13 @@ Dipendenze: pandas · numpy · scipy · statsmodels
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd
 from scipy import stats as sp_stats
 from statsmodels.stats.weightstats import ztest
+from crewai.tools import BaseTool
 
 # ---------------------------------------------------------------------------#
 # Helper utilities
@@ -127,7 +128,7 @@ def outlier_report(df: pd.DataFrame, *, kpi: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------#
 
 
-class CrossStatEngineTool:
+class CrossStatEngineTool(BaseTool):
     """
     Tool registrabile in CrewAI.
 
@@ -139,11 +140,29 @@ class CrossStatEngineTool:
             df_csv: "{{ unified_dataset }}"
     """
 
-    name = "cross_stat_engine"
-    description = "Statistical engine: correlations, impact ranking, outlier detection."
+    name: str = "cross_stat_engine"
+    description: str = "Statistical engine: correlations, impact ranking, outlier detection."
 
-    def __call__(self, df_csv: str | bytes, kpi: str, mode: str = "correlation", top_k: int | None = 10) -> str:
-        """Make the tool callable directly as a function."""
+    def _run(self, input: Union[str, Dict[str, Any]]) -> str:
+        """
+        Main entry point required by BaseTool, handling both dict and string inputs.
+        """
+        # Parse input if it's a string
+        if isinstance(input, str):
+            try:
+                input_data = json.loads(input)
+            except json.JSONDecodeError:
+                # Fallback for simple string cases
+                return f"Error: Expected JSON input but got: {input}"
+        else:
+            input_data = input
+        
+        # Extract parameters
+        df_csv = input_data.get("df_csv", "")
+        kpi = input_data.get("kpi", "")
+        mode = input_data.get("mode", "correlation")
+        top_k = input_data.get("top_k", 10)
+        
         return self.run(df_csv=df_csv, kpi=kpi, mode=mode, top_k=top_k)
 
     def run(
@@ -155,6 +174,8 @@ class CrossStatEngineTool:
         top_k: int | None = 10,
     ) -> str:
         """
+        Original implementation with full type annotations.
+        
         Parameters
         ----------
         df_csv
