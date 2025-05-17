@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-05-17T20:53:48.215728",
+  "by_agent": {
+    "data_agent": {
+      "calls": 0,
+      "input": 0,
+      "output": 0,
+      "total": 0
+    },
+    "stats_agent": {
+      "calls": 0,
+      "input": 0,
+      "output": 0,
+      "total": 0
+    },
+    "explain_agent": {
+      "calls": 0,
+      "input": 0,
+      "output": 0,
+      "total": 0
+    }
+  },
+  "total_tokens": 0,
+  "estimated_cost_usd": 0.0
+}

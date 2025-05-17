@@ -185,7 +185,12 @@ class CrossDataProfilerTool(BaseTool):
         csv_paths = [p for p in csv_paths if p.name != "unified_dataset.csv"]
             
         # Load dataframes
-        dataframes = [pd.read_csv(p) for p in csv_paths]
+        dataframes = []
+        for p in csv_paths:
+            df = pd.read_csv(p)
+            # Salva il percorso del file come attributo del dataframe
+            df._file_path = str(p)
+            dataframes.append(df)
         profile = self._profile_frames(dataframes, csv_paths)
 
         key = self._discover_join_key(dataframes, profile)
@@ -255,15 +260,31 @@ class CrossDataProfilerTool(BaseTool):
 
     def _merge_and_clean(self, frames: List[pd.DataFrame], key: str) -> pd.DataFrame:
         """Outer‑join all frames on the discovered key and coerce numeric columns."""
+        # Rinomina le colonne 'value' in ciascun dataframe in base al nome del file
+        for i, df in enumerate(frames):
+            if 'value' in df.columns:
+                # Ottieni il nome del driver dal contesto o usa un nome generico
+                driver_name = f"driver_{i+1}"
+                # Se abbiamo i nomi dei file originali, usali per il nome del driver
+                if hasattr(df, '_file_path') and df._file_path:
+                    driver_name = Path(df._file_path).stem
+                
+                # Rinomina la colonna 'value'
+                df.rename(columns={'value': f'value_{driver_name}'}, inplace=True)
+        
+        # Esegui il merge
         base = frames[0]
         for df in frames[1:]:
             base = base.merge(df, on=key, how="outer", suffixes=("", "_dup"))
+        
         # Drop duplicated columns created by suffixes
         dupes = [c for c in base.columns if c.endswith("_dup")]
         base.drop(columns=dupes, inplace=True)
+        
         # Coerce numeric
         for col in base.columns:
             if col == key:
                 continue
             base[col] = pd.to_numeric(base[col], errors="coerce")
+        
         return base

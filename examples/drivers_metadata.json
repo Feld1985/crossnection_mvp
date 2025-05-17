@@ -1,0 +1,22 @@
+{
+  "drivers": {
+    "speed": {
+      "description": "Velocità del macchinario in RPM",
+      "unit": "RPM",
+      "normal_range": [80, 120],
+      "business_context": "Una velocità elevata aumenta la produttività ma potrebbe compromettere la qualità"
+    },
+    "temperature": {
+      "description": "Temperatura operativa del macchinario",
+      "unit": "°C",
+      "normal_range": [10, 30],
+      "business_context": "Temperature elevate possono causare problemi di qualità e usura accelerata"
+    },
+    "pressure": {
+      "description": "Pressione del sistema idraulico",
+      "unit": "bar",
+      "normal_range": [0.8, 1.2],
+      "business_context": "La pressione influisce sulla stabilità del processo e sull'uniformità del prodotto"
+    }
+  }
+}

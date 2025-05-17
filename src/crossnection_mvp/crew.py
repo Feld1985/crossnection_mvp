@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 import crewai as cr
 from crewai.tools import BaseTool
+from crossnection_mvp.utils.token_counter import TokenCounterLLM
 
 # ----------------------------------------------------------------------------
 # Percorsi di configurazione
@@ -81,10 +82,37 @@ class CrossnectionMvpCrew:
             # Aggiungi LLM se presente nella configurazione
             if "llm" in config:
                 llm_config = config["llm"]
-                agent_params["llm_config"] = {
-                    "model": llm_config.get("model", "gpt-4o-mini"),
-                    "temperature": llm_config.get("temperature", 0.0)
-                }
+                model = llm_config.get("model", "gpt-4o-mini")
+                temperature = llm_config.get("temperature", 0.0)
+                
+                try:
+                    # Utilizza LangChain per creare un LLM compatibile con CrewAI
+                    from langchain_openai import ChatOpenAI
+                    
+                    # Crea l'istanza di ChatOpenAI
+                    llm = ChatOpenAI(model=model, temperature=temperature)
+                    
+                    # Avvolgi con il TokenCounterLLM
+                    wrapped_llm = TokenCounterLLM(llm, agent_name=name)
+                    
+                    # Imposta l'LLM nell'agente
+                    agent_params["llm"] = wrapped_llm
+                    
+                    print(f"[INFO] Agent {name} using token-counted {model}, temp={temperature}")
+                except ImportError as e:
+                    print(f"[WARNING] LangChain not available ({e}), token counting disabled")
+                    # Fallback al metodo standard
+                    agent_params["llm_config"] = {
+                        "model": model,
+                        "temperature": temperature
+                    }
+                except Exception as e:
+                    print(f"[WARNING] Failed to create token-counted LLM: {e}")
+                    # Fallback al metodo standard
+                    agent_params["llm_config"] = {
+                        "model": model,
+                        "temperature": temperature
+                    }
             
             agent = cr.Agent(**agent_params)
             self._agents[name] = agent
@@ -181,10 +209,42 @@ class CrossnectionMvpCrew:
         # Usa il metodo corretto per eseguire la crew
         try:
             # Prova prima kickoff (versioni più recenti)
-            return self.crew().kickoff(inputs=inputs)
+            result = self.crew().kickoff(inputs=inputs)
+            
+            # Stampa il riepilogo dei token utilizzati
+            try:
+                TokenCounterLLM.print_usage_summary()
+            except Exception as e:
+                print(f"[WARNING] Failed to print token usage summary: {e}")
+            
+            # Stampa il riepilogo dell'utilizzo OpenAI
+            try:
+                from crossnection_mvp.utils.openai_logger import get_logger
+                logger = get_logger()
+                logger.print_summary()
+            except Exception as e:
+                print(f"[WARNING] Failed to print OpenAI usage summary: {e}")
+            
+            return result
         except AttributeError:
             # Fallback a run per versioni precedenti
-            return self.crew().run(inputs=inputs)
+            result = self.crew().run(inputs=inputs)
+            
+            # Stampa il riepilogo dei token utilizzati
+            try:
+                TokenCounterLLM.print_usage_summary()
+            except Exception as e:
+                print(f"[WARNING] Failed to print token usage summary: {e}")
+            
+            # Stampa il riepilogo dell'utilizzo OpenAI
+            try:
+                from crossnection_mvp.utils.openai_logger import get_logger
+                logger = get_logger()
+                logger.print_summary()
+            except Exception as e:
+                print(f"[WARNING] Failed to print OpenAI usage summary: {e}")
+            
+            return result
 
     def train(self) -> None:
         """Allena prompt, memory o agenti come previsto da CrewAI."""

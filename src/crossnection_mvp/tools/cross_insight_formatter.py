@@ -23,12 +23,14 @@ from __future__ import annotations
 import json
 import statistics
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Union
-from pydantic import BaseModel
+from typing import Any, Dict, List, Sequence, Union, Optional
+from pydantic import BaseModel, Field
 
 import markdown  # pip install markdown
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from crewai.tools import BaseTool
+
+print("========== LOADING UPDATED CROSS_INSIGHT_FORMATTER ==========")
 
 # ---------------------------------------------------------------------------#
 # Jinja environment & templates
@@ -84,9 +86,20 @@ def _outlier_summary(outliers: Sequence[Dict[str, Any]]) -> str:
 # Main tool class
 # ---------------------------------------------------------------------------#
 
-from typing import Annotated
 class CrossInsightFormatterToolSchema(BaseModel):
-    input: Annotated[Union[str, Dict[str, Any]], "Markdown config or feedback blob"]
+    """Schema per il tool CrossInsightFormatter.
+    
+    Nota: NON include un campo 'input' perché CrewAI già incapsula l'input
+    in un dizionario con chiave 'input'.
+    """
+    description: Optional[str] = None
+    impact_ranking: Optional[Dict[str, Any]] = None
+    outlier_report: Optional[Dict[str, Any]] = None
+    feedback: Optional[str] = None
+    mode: Optional[str] = "draft"
+    k_top: Optional[int] = 5
+    output_html: Optional[bool] = False
+    metadata: Optional[Dict[str, Any]] = {}
 
 class CrossInsightFormatterTool(BaseTool):
     """Tool entry-point to be registered in CrewAI."""
@@ -97,42 +110,35 @@ class CrossInsightFormatterTool(BaseTool):
     )
     args_schema = CrossInsightFormatterToolSchema
 
-    def _run(self, input: Union[str, Dict[str, Any]]) -> str:
+    def _run(self, 
+             description: Optional[str] = None,
+             impact_ranking: Optional[Dict[str, Any]] = None,
+             outlier_report: Optional[Dict[str, Any]] = None,
+             feedback: Optional[str] = None,
+             mode: str = "draft",
+             k_top: int = 5,
+             output_html: bool = False,
+             metadata: Optional[Dict[str, Any]] = None,
+             **kwargs) -> str:
         """
         Main entry point required by BaseTool.
         """
-        print(f"DEBUG: CrossInsightFormatterTool received raw input: {input}")
+        print("!! USING FIXED CROSS_INSIGHT_FORMATTER !!")
+        print(f"DEBUG: CrossInsightFormatterTool received params: description={description is not None}, impact_ranking={impact_ranking is not None}, outlier_report={outlier_report is not None}")
         
-        # Parse input if it's a string
-        if isinstance(input, str):
-            try:
-                input_data = json.loads(input)
-                print(f"DEBUG: Parsed JSON string to dict: {input_data}")
-            except json.JSONDecodeError:
-                # Caso in cui l'input è una stringa semplice (non JSON)
-                print(f"DEBUG: Input is not JSON, treating as general feedback")
-                input_data = {
-                    "mode": "draft",
-                    "feedback": input,
-                    "impact_ranking": {"kpi_name": "Default KPI", "ranking": []},
-                    "outlier_report": {"outliers": []}
-                }
-        else:
-            input_data = input
+        # Gestione dello scenario in cui l'agente passa direttamente un testo narrativo in 'description'
+        if description and (not impact_ranking or not outlier_report):
+            print(f"DEBUG: Using description as content: {description[:100]}...")
+            return json.dumps({
+                "markdown": description,
+                "status": "success"
+            })
         
-        # Estrai parameters con valori predefiniti
-        impact_ranking = input_data.get("impact_ranking", {"kpi_name": "Default KPI", "ranking": []})
-        outlier_report = input_data.get("outlier_report", {"outliers": []})
-        feedback = input_data.get("feedback")
-        mode = input_data.get("mode", "draft")
-        k_top = input_data.get("k_top", 5)
-        output_html = input_data.get("output_html", False)
-        
-        # Se impact_ranking è None o vuoto, crea un dizionario di default
+        # Default per impact_ranking
         if not impact_ranking:
             impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
         
-        # Se outlier_report è None o vuoto, crea un dizionario di default
+        # Default per outlier_report
         if not outlier_report:
             outlier_report = {"outliers": []}
         

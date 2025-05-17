@@ -36,6 +36,10 @@ class ExplainAgent(cr.BaseAgent):
         Generate the draft narrative of root causes, combining impact ranking
         and outlier report. This output is intended for business‑sense validation.
         """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "draft_root_cause_narrative"
+            
         try:
             result = self._formatter.run(
                 impact_ranking=impact_ranking,
@@ -55,6 +59,10 @@ class ExplainAgent(cr.BaseAgent):
         """
         Produce the final root‑cause report after merging user feedback.
         """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "finalize_root_cause_report"
+            
         try:
             result = self._formatter.run(
                 impact_ranking=None,

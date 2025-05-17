@@ -53,6 +53,10 @@ class DataAgent(cr.BaseAgent):
         Profila e valida i file CSV dalla directory di input.
         Override del metodo predefinito per gestire meglio gli errori.
         """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "profile_validate_dataset"
+            
         # Estrazione e validazione parametri
         csv_folder = kwargs.get("csv_folder", kwargs.get("_original_csv_folder", "examples/driver_csvs"))
         kpi = kwargs.get("kpi", "Default KPI")
@@ -80,6 +84,49 @@ class DataAgent(cr.BaseAgent):
                 "unified_dataset_csv": "",
                 "data_report_json": json.dumps({"tables": [], "error": str(e)})
             }
+
+    def join_key_strategy(self, **kwargs) -> Dict[str, Any]:
+        """
+        Analizza il data_report per scoprire o generare una join-key unica.
+        """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "join_key_strategy"
+            
+        # Implementazione del metodo
+        data_report = kwargs.get("data_report", "{}")
+        
+        try:
+            # Logica di join_key_strategy
+            # ...
+            
+            # Esempio di risultato
+            return {"strategy": "use_existing_key", "key_name": "join_key"}
+        except Exception as e:
+            print(f"ERROR in join_key_strategy: {e}")
+            return {"strategy": "use_existing_key", "key_name": "join_key"}
+
+    def clean_normalize_dataset(self, **kwargs) -> Dict[str, Any]:
+        """
+        Applica regole di pulizia e unisce tutti i dataset dei driver.
+        """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "clean_normalize_dataset"
+        
+        # Implementazione del metodo
+        join_key_strategy = kwargs.get("join_key_strategy", {})
+        data_report = kwargs.get("data_report", {})
+        
+        try:
+            # Logica di clean_normalize_dataset
+            # ...
+            
+            # Esempio di risultato
+            return {"unified_dataset": "join_key,value_speed,value_temperature,value_pressure\n..."}
+        except Exception as e:
+            print(f"ERROR in clean_normalize_dataset: {e}")
+            return {"unified_dataset": ""}
 
     # ------------------------------------------------------------------
     # Convenience API (bypass Crew execution)

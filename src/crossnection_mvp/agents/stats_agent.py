@@ -111,13 +111,16 @@ class StatsAgent(cr.BaseAgent):
 
         logger.info("[StatsAgent] Pipeline completed (drivers=%s)", len(impact_ranking))
         return correlation_matrix, impact_ranking, outlier_report
-    # Aggiungi questi metodi a src/crossnection_mvp/agents/stats_agent.py
-
+    
     def compute_correlations(self, **kwargs):
         """
         Computes correlation between each driver and KPI.
         Enhanced error handling and fallback logic.
         """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "compute_correlations"
+            
         try:
             # Estrai parametri dall'input
             df_csv = kwargs.get("df_csv", "")
@@ -146,6 +149,10 @@ class StatsAgent(cr.BaseAgent):
         Ranks drivers by impact based on correlation data.
         Enhanced with error recovery.
         """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "rank_impact"
+            
         try:
             # Estrai parametri dall'input
             df_csv = kwargs.get("df_csv", "")
@@ -196,6 +203,10 @@ class StatsAgent(cr.BaseAgent):
         Identifies outliers in the driver datasets.
         Enhanced with error handling.
         """
+        # Imposta il task_name nel TokenCounterLLM se presente
+        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+            self.llm.task_name = "detect_outliers"
+            
         try:
             # Estrai parametri dall'input
             df_csv = kwargs.get("df_csv", "")
@@ -220,9 +231,9 @@ class StatsAgent(cr.BaseAgent):
                 ]
             })
 
-        # ------------------------------------------------------------------
-        # Friendly repr for debugging
-        # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Friendly repr for debugging
+    # ------------------------------------------------------------------
 
     def __repr__(self) -> str:  # noqa: D401 – simple representation
         return f"<StatsAgent role='{self._ROLE}'>"

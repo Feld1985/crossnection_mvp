@@ -31,6 +31,7 @@ import pandas as pd
 from scipy import stats as sp_stats
 from statsmodels.stats.weightstats import ztest
 from crewai.tools import BaseTool
+from crossnection_mvp.utils.metadata_loader import enrich_driver_names
 
 # ---------------------------------------------------------------------------#
 # Helper utilities
@@ -151,7 +152,19 @@ def impact_ranking(corr_df: pd.DataFrame, top_k: int | None = None) -> List[Dict
     
     if top_k:
         ranked = ranked.head(top_k)
-    return ranked.to_dict(orient="records")
+    
+    # Ottieni le descrizioni arricchite dei driver
+    driver_names = ranked["driver_name"].tolist()
+    enriched_names = enrich_driver_names(driver_names)
+    
+    # Aggiungi descrizioni ai risultati
+    ranked_dict = ranked.to_dict(orient="records")
+    for item in ranked_dict:
+        driver = item["driver_name"]
+        if driver in enriched_names:
+            item["driver_description"] = enriched_names[driver]
+    
+    return ranked_dict
 
 
 # ---------------------------------------------------------------------------#

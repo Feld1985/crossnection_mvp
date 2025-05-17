@@ -4,10 +4,10 @@
 
 ## Top-{{ top_drivers|length }} Influencing Drivers
 
-| Rank | Driver | Effect Size | p-value | Strength | Explanation |
-| ---- | ------ | ----------- | ------- | -------- | ----------- |
+| Rank | Driver | Description | Effect Size | p-value | Strength | Explanation |
+| ---- | ------ | ----------- | ----------- | ------- | -------- | ----------- |
 {% for d in top_drivers -%}
-| {{ loop.index }} | {{ d.driver_name }} | {{ '%.3f' | format(d.score if d.score is defined else d.effect_size) }} | {{ '%.3g' | format(d.p_value) }} | {{ d.strength if d.strength is defined else 'n/a' }} | {{ d.explanation if d.explanation is defined else '' }} |
+| {{ loop.index }} | {{ d.driver_name }} | {{ d.driver_description if d.driver_description is defined else 'No description available' }} | {{ '%.3f' | format(d.score if d.score is defined else d.effect_size) }} | {{ '%.3g' | format(d.p_value) }} | {{ d.strength if d.strength is defined else 'n/a' }} | {{ d.explanation if d.explanation is defined else '' }} |
 {% endfor %}
 
 ## Outlier Check

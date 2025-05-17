@@ -21,6 +21,51 @@ Usage examples:
 The CLI is also invocable via:
     python -m crossnection_mvp.main run --kpi "..." --process-map ...
 """
+
+# Importa e configura il logger OpenAI (aggiungi questa parte)
+try:
+    import openai
+    
+    # Crea la directory per i logs
+    from pathlib import Path
+    log_dir = Path("openai_logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    # Importa e inizializza il logger
+    from crossnection_mvp.utils.openai_logger import get_logger
+    logger = get_logger()
+    
+    # Salva la funzione di chiamata originale
+    if hasattr(openai, "chat") and hasattr(openai.chat, "completions"):
+        original_chat_completions_create = openai.chat.completions.create
+        
+        # Funzione di intercettazione
+        def patched_chat_completions_create(*args, **kwargs):
+            # Chiamata originale
+            response = original_chat_completions_create(*args, **kwargs)
+            
+            # Log dell'utilizzo
+            model = kwargs.get("model", "unknown")
+            usage = getattr(response, "usage", None)
+            if usage:
+                logger.log_api_call(
+                    model=model,
+                    prompt_tokens=getattr(usage, "prompt_tokens", 0),
+                    completion_tokens=getattr(usage, "completion_tokens", 0),
+                    total_tokens=getattr(usage, "total_tokens", 0),
+                    agent_name="unknown"  # Non abbiamo questa info qui
+                )
+            
+            return response
+        
+        # Sostituisci la funzione originale con quella intercettata
+        openai.chat.completions.create = patched_chat_completions_create
+        
+        print("[INFO] OpenAI API logger installed")
+except Exception as e:
+    print(f"[WARNING] Failed to install OpenAI API logger: {e}")
+    
+    
 from pathlib import Path
 from typing import Optional
 
@@ -54,6 +99,9 @@ def run(
     ),
     drivers_dir: Path = typer.Option(
         ..., exists=True, file_okay=False, readable=True, help="Directory containing CSV files for each driver"
+    ),
+    metadata_file: Path = typer.Option(
+        None, exists=True, readable=True, help="Optional JSON file with driver metadata"
     ),
 ):
     """Execute the full Root‑Cause Flow on user‑supplied data."""

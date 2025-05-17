@@ -1,4 +1,4 @@
-join_key,timestamp,value
+join_key,timestamp,value_temperature
 1,2025-01-01,11.42080408722429
 2,2025-01-02,7.269119367717154
 3,2025-01-03,10.79051806490302
