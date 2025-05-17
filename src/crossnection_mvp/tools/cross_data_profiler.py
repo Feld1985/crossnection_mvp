@@ -45,20 +45,27 @@ class CrossDataProfilerTool(BaseTool):
     )
     args_schema = CrossDataProfilerToolSchema
 
+    def print_truncated(self, message, max_length=500):
+        """Print message, truncating if too long."""
+        if len(message) > max_length:
+            print(f"{message[:max_length]}... [truncated, total length: {len(message)}]")
+        else:
+            print(message)
+
     def _run(self, input: Union[str, Dict[str, Any]]) -> str:
         """
         Main entry‑point expected by CrewAI BaseTool.
         
         Arguments can be passed as JSON string or dictionary.
         """
-        print(f"DEBUG: CrossDataProfilerTool received raw input: {input}")
+        self.print_truncated(f"DEBUG: CrossDataProfilerTool received raw input: {input}")
         
         # Gestione input da CrewAI con struttura diversa
         if isinstance(input, dict):
             # Controlla se l'input ha la struttura CrewAI {"input": {...}}
             if "input" in input and isinstance(input["input"], dict):
                 input_data = input["input"]
-                print(f"DEBUG: Extracted input data from CrewAI format: {input_data}")
+                self.print_truncated(f"DEBUG: Extracted input data from CrewAI format: {input_data}")
             # Gestione formato da join_key_strategy task
             elif "type" in input and isinstance(input["type"], dict) and any(k.startswith("file") for k in input["type"]):
                 print(f"DEBUG: Detected join_key_strategy task format with file list")
@@ -66,7 +73,7 @@ class CrossDataProfilerTool(BaseTool):
             else:
                 # Input è già un dizionario normale
                 input_data = input
-                print(f"DEBUG: Using input dict directly: {input_data}")
+                self.print_truncated(f"DEBUG: Using input dict directly: {input_data}")
         elif isinstance(input, str):
             # Rilevamento contenuto CSV diretto
             if input.startswith("join_key,timestamp,value") or input.startswith('"join_key,timestamp,value'):
@@ -80,7 +87,7 @@ class CrossDataProfilerTool(BaseTool):
             try:
                 # Prova a interpretare come JSON
                 input_data = json.loads(input)
-                print(f"DEBUG: Parsed JSON string to dict: {input_data}")
+                self.print_truncated(f"DEBUG: Parsed JSON string to dict: {input_data}")
             except json.JSONDecodeError:
                 # È una stringa semplice, usa il fallback
                 print(f"DEBUG: Input is a simple string, using as csv_folder: {input}")
@@ -173,6 +180,9 @@ class CrossDataProfilerTool(BaseTool):
                     raise ValueError(f"No CSV files found in {csv_folder} or fallback location")
             else:
                 raise ValueError(f"No CSV files found in {csv_folder}")
+        
+        # Filtra via unified_dataset.csv se presente
+        csv_paths = [p for p in csv_paths if p.name != "unified_dataset.csv"]
             
         # Load dataframes
         dataframes = [pd.read_csv(p) for p in csv_paths]
@@ -181,9 +191,24 @@ class CrossDataProfilerTool(BaseTool):
         key = self._discover_join_key(dataframes, profile)
         unified = self._merge_and_clean(dataframes, key)
 
-        # Return artifacts in the expected format
+        # Salva il dataset unificato come file per evitare di sovraccaricarlo nel contesto
+        unified_csv = unified.to_csv(index=False)
+        
+        # Invece di restituire l'intero dataset, salviamolo su file e restituiamo solo un riferimento/sommario
+        unified_path = Path("examples/driver_csvs/unified_dataset.csv")
+        with open(unified_path, "w") as f:
+            f.write(unified_csv)
+        
+        # Ora crea un sommario del dataset invece dell'intero contenuto
+        rows, cols = unified.shape
+        column_summary = ", ".join(unified.columns.tolist())
+        dataset_summary = f"Unified dataset saved at {unified_path}. Shape: {rows} rows x {cols} columns. Columns: {column_summary}"
+        print(f"DEBUG: {dataset_summary}")
+
+        # Return artifacts in the expected format, ma con sommario invece del CSV completo
         return {
-            "unified_dataset_csv": unified.to_csv(index=False),
+            "unified_dataset_csv": dataset_summary,  # Sommario invece dell'intero CSV
+            "unified_dataset_path": str(unified_path),  # Path al file per poterlo recuperare dopo
             "data_report_json": json.dumps(profile, ensure_ascii=False, indent=2)
         }
 

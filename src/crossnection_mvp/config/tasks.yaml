@@ -54,8 +54,8 @@ compute_correlations:
     including significance tests.
   input:
     df_csv: "{{ unified_dataset }}"
-    mode: correlation
-    kpi: "{{ kpi }}"
+    mode: "correlation"
+    kpi: "value_speed"  # Default KPI if user doesn't specify
   output_key: correlation_matrix
   expected_output: >
     A JSON array with driver names, correlation coefficients, and p-values.
@@ -65,7 +65,11 @@ rank_impact:
   description: |
     Rank drivers by their impact on the KPI based on correlation strength
     and statistical significance.
-  input_key: correlation_matrix
+  input:
+    df_csv: "{{ unified_dataset }}"  # Fornisci direttamente il dataset anche qui
+    kpi: "value_speed"  # Default KPI if user doesn't specify 
+    mode: "ranking"
+    correlation_matrix: "{{ correlation_matrix }}"  # Passa comunque la matrice di correlazione
   output_key: impact_ranking
   expected_output: >
     A ranked list of drivers by their impact on the KPI based on correlation strength and significance.
@@ -75,7 +79,10 @@ detect_outliers:
   description: |
     Identify outliers in the driver datasets and flag data points that may
     distort the analysis.
-  input_key: unified_dataset
+  input:
+    df_csv: "{{ unified_dataset }}"
+    kpi: "value_speed"  # Default KPI
+    mode: "outliers"
   output_key: outlier_report
   expected_output: >
     A JSON report identifying outliers in driver datasets that may distort the analysis.

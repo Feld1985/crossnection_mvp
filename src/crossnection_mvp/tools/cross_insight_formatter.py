@@ -101,38 +101,77 @@ class CrossInsightFormatterTool(BaseTool):
         """
         Main entry point required by BaseTool.
         """
+        print(f"DEBUG: CrossInsightFormatterTool received raw input: {input}")
+        
         # Parse input if it's a string
         if isinstance(input, str):
             try:
                 input_data = json.loads(input)
+                print(f"DEBUG: Parsed JSON string to dict: {input_data}")
             except json.JSONDecodeError:
-                # Fallback for simple string inputs
-                return f"Error: Expected JSON input but got: {input}"
+                # Caso in cui l'input è una stringa semplice (non JSON)
+                print(f"DEBUG: Input is not JSON, treating as general feedback")
+                input_data = {
+                    "mode": "draft",
+                    "feedback": input,
+                    "impact_ranking": {"kpi_name": "Default KPI", "ranking": []},
+                    "outlier_report": {"outliers": []}
+                }
         else:
             input_data = input
         
-        # Extract parameters 
-        impact_ranking = input_data.get("impact_ranking")
-        outlier_report = input_data.get("outlier_report")
+        # Estrai parameters con valori predefiniti
+        impact_ranking = input_data.get("impact_ranking", {"kpi_name": "Default KPI", "ranking": []})
+        outlier_report = input_data.get("outlier_report", {"outliers": []})
         feedback = input_data.get("feedback")
         mode = input_data.get("mode", "draft")
         k_top = input_data.get("k_top", 5)
         output_html = input_data.get("output_html", False)
         
-        # Run the original implementation
-        result = self.run(
-            impact_ranking=impact_ranking,
-            outlier_report=outlier_report,
-            feedback=feedback,
-            mode=mode,
-            k_top=k_top,
-            output_html=output_html
-        )
+        # Se impact_ranking è None o vuoto, crea un dizionario di default
+        if not impact_ranking:
+            impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
         
-        # Convert result to string if needed by CrewAI
-        if isinstance(result, dict):
-            return json.dumps(result, ensure_ascii=False)
-        return result
+        # Se outlier_report è None o vuoto, crea un dizionario di default
+        if not outlier_report:
+            outlier_report = {"outliers": []}
+        
+        print(f"DEBUG: CrossInsightFormatter using mode={mode}, k_top={k_top}")
+        
+        try:
+            # Run the original implementation
+            result = self.run(
+                impact_ranking=impact_ranking,
+                outlier_report=outlier_report,
+                feedback=feedback,
+                mode=mode,
+                k_top=k_top,
+                output_html=output_html
+            )
+            
+            # Convert result to string if needed by CrewAI
+            if isinstance(result, dict):
+                return json.dumps(result, ensure_ascii=False)
+            return result
+        except Exception as e:
+            error_msg = f"ERROR in CrossInsightFormatterTool: {e}"
+            print(error_msg)
+            # Fornisci un output minimo che non interrompa il flusso
+            markdown = f"""
+    # 📊 Error in Root-Cause Narrative
+
+    An error occurred while generating the narrative: {e}
+
+    ## Validation Instructions
+
+    Please review the input data and ensure:
+    - The KPI is correctly specified
+    - There is sufficient driver data to analyze
+    - The data format is correct
+
+    *You can provide feedback on this error to help improve the process.*
+    """
+            return json.dumps({"markdown": markdown, "error": str(e)})
 
     # ---------------------------------------------------------------------#
     # Original implementation
