@@ -71,15 +71,46 @@ def _load_json_like(blob: str | Path | Dict[str, Any]) -> Dict[str, Any]:
     return blob
 
 
-def _top_drivers(impact_ranking: Sequence[Dict[str, Any]], k: int = 5) -> List[Dict[str, Any]]:
+def _top_drivers(impact_ranking: Any, k: int = 5) -> List[Dict[str, Any]]:
     """Return top-k drivers by composite score (already sorted)."""
-    return list(impact_ranking[:k])
+    # Handle different input formats
+    if isinstance(impact_ranking, dict):
+        if "ranking" in impact_ranking:
+            # Standard format with "ranking" key
+            ranking = impact_ranking["ranking"]
+        elif all(isinstance(key, (int, str)) for key in impact_ranking.keys()):
+            # Dict with numeric keys
+            ranking = [value for key, value in sorted(impact_ranking.items())]
+        else:
+            # Fallback - treat as direct ranking
+            ranking = impact_ranking
+    else:
+        # Direct sequence/list
+        ranking = impact_ranking
+    
+    # Ensure we have a list before slicing
+    if not isinstance(ranking, list):
+        ranking = list(ranking) if hasattr(ranking, '__iter__') else [ranking]
+    
+    # Now slice the list safely
+    return ranking[:k]
 
 
 def _outlier_summary(outliers: Sequence[Dict[str, Any]]) -> str:
     if not outliers:
         return "No significant outliers were detected."
-    cols = {row["driver"] for row in outliers}
+    
+    # Extract driver names, handling different possible structures
+    cols = set()
+    for row in outliers:
+        if "driver" in row:
+            cols.add(row["driver"])
+        else:
+            # If no "driver" key, collect all keys that might be drivers
+            for key in row:
+                if key not in ["join_key", "row"]:
+                    cols.add(key)
+    
     rows = len(outliers)
     return (
         f"{rows} outlying data points were flagged across "
@@ -309,16 +340,18 @@ Please review the input data and ensure:
         k_top: int,
     ) -> str:
         """Render first draft to be validated by user."""
-        # Estrai il ranking dalla struttura corretta
-        ranking = impact_ranking.get("ranking", [])
-        if not ranking and "kpi_name" not in impact_ranking:
-            # Potrebbe essere già il ranking diretto
-            ranking = impact_ranking
-            
-        top = _top_drivers(ranking, k=k_top)
+        # Extract KPI name from various possible structures
+        kpi_name = "KPI"
+        if isinstance(impact_ranking, dict):
+            if "kpi_name" in impact_ranking:
+                kpi_name = impact_ranking["kpi_name"]
+        
+        # Get top drivers using the robust helper function
+        top = _top_drivers(impact_ranking, k=k_top)
+                
         context = {
             "top_drivers": top,
-            "kpi": impact_ranking.get("kpi_name", "KPI"),
+            "kpi": kpi_name,
             "outlier_summary": _outlier_summary(outlier_report.get("outliers", [])),
             "validation_instructions": """
             Please review each driver and mark them as follows:
@@ -340,21 +373,26 @@ Please review the input data and ensure:
         k_top: int,
     ) -> str:
         """Render final narrative, merging user feedback."""
-        # Estrai il ranking dalla struttura corretta
-        ranking = impact_ranking.get("ranking", [])
-        if not ranking and "kpi_name" not in impact_ranking:
-            # Potrebbe essere già il ranking diretto
-            ranking = impact_ranking
-            
+        # Extract KPI name from various possible structures
+        kpi_name = "KPI"
+        if isinstance(impact_ranking, dict):
+            if "kpi_name" in impact_ranking:
+                kpi_name = impact_ranking["kpi_name"]
+        
+        # Get top drivers using the robust helper function
+        top = _top_drivers(impact_ranking, k=k_top)
+        
         # Simple merge: mark each driver as accepted/rejected/edited
-        for driver in ranking:
-            fb = feedback.get("drivers", {}).get(driver["driver_name"])
-            if fb:
-                driver["feedback"] = fb  # could include 'comment', 'status', etc.
+        for driver in top:
+            if "driver_name" in driver:
+                driver_name = driver["driver_name"]
+                fb = feedback.get("drivers", {}).get(driver_name)
+                if fb:
+                    driver["feedback"] = fb  # could include 'comment', 'status', etc.
 
         context = {
-            "top_drivers": _top_drivers(ranking, k=k_top),
-            "kpi": impact_ranking.get("kpi_name", "KPI"),
+            "top_drivers": top,
+            "kpi": kpi_name,
             "outlier_summary": _outlier_summary(outlier_report.get("outliers", [])),
             "user_notes": feedback.get("general_comment", ""),
         }
