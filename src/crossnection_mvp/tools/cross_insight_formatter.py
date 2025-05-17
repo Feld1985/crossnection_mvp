@@ -29,8 +29,7 @@ from pydantic import BaseModel, Field
 import markdown  # pip install markdown
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from crewai.tools import BaseTool
-
-print("========== LOADING UPDATED CROSS_INSIGHT_FORMATTER ==========")
+from crossnection_mvp.utils.context_store import ContextStore
 
 # ---------------------------------------------------------------------------#
 # Jinja environment & templates
@@ -63,7 +62,13 @@ def _load_json_like(blob: str | Path | Dict[str, Any]) -> Dict[str, Any]:
         return blob
     if isinstance(blob, Path):
         return json.loads(Path(blob).read_text())
-    return json.loads(blob)
+    if isinstance(blob, str):
+        try:
+            return json.loads(blob)
+        except json.JSONDecodeError:
+            print(f"WARNING: Failed to parse JSON: {blob[:100]}...")
+            return {"error": "Failed to parse JSON", "text": blob}
+    return blob
 
 
 def _top_drivers(impact_ranking: Sequence[Dict[str, Any]], k: int = 5) -> List[Dict[str, Any]]:
@@ -87,11 +92,7 @@ def _outlier_summary(outliers: Sequence[Dict[str, Any]]) -> str:
 # ---------------------------------------------------------------------------#
 
 class CrossInsightFormatterToolSchema(BaseModel):
-    """Schema per il tool CrossInsightFormatter.
-    
-    Nota: NON include un campo 'input' perché CrewAI già incapsula l'input
-    in un dizionario con chiave 'input'.
-    """
+    """Schema per il tool CrossInsightFormatter."""
     description: Optional[str] = None
     impact_ranking: Optional[Dict[str, Any]] = None
     outlier_report: Optional[Dict[str, Any]] = None
@@ -123,16 +124,37 @@ class CrossInsightFormatterTool(BaseTool):
         """
         Main entry point required by BaseTool.
         """
-        print("!! USING FIXED CROSS_INSIGHT_FORMATTER !!")
         print(f"DEBUG: CrossInsightFormatterTool received params: description={description is not None}, impact_ranking={impact_ranking is not None}, outlier_report={outlier_report is not None}")
+        
+        # Se non abbiamo i dati direttamente, prova a caricarli dal Context Store
+        store = ContextStore.get_instance()
+        
+        if impact_ranking is None:
+            try:
+                impact_ranking = store.load_json("impact_ranking")
+                print(f"DEBUG: Loaded impact_ranking from Context Store")
+            except Exception as e:
+                print(f"WARNING: Failed to load impact_ranking from Context Store: {e}")
+                
+        if outlier_report is None:
+            try:
+                outlier_report = store.load_json("outlier_report")
+                print(f"DEBUG: Loaded outlier_report from Context Store")
+            except Exception as e:
+                print(f"WARNING: Failed to load outlier_report from Context Store: {e}")
         
         # Gestione dello scenario in cui l'agente passa direttamente un testo narrativo in 'description'
         if description and (not impact_ranking or not outlier_report):
             print(f"DEBUG: Using description as content: {description[:100]}...")
-            return json.dumps({
-                "markdown": description,
-                "status": "success"
-            })
+            result = {"markdown": description, "status": "success"}
+            
+            # Salva nel Context Store
+            if mode == "draft":
+                store.save_json("narrative_draft", result)
+            else:
+                store.save_json("root_cause_report", result)
+            
+            return json.dumps(result)
         
         # Default per impact_ranking
         if not impact_ranking:
@@ -155,6 +177,12 @@ class CrossInsightFormatterTool(BaseTool):
                 output_html=output_html
             )
             
+            # Salva nel Context Store
+            if mode == "draft":
+                store.save_json("narrative_draft", result)
+            else:
+                store.save_json("root_cause_report", result)
+            
             # Convert result to string if needed by CrewAI
             if isinstance(result, dict):
                 return json.dumps(result, ensure_ascii=False)
@@ -163,21 +191,31 @@ class CrossInsightFormatterTool(BaseTool):
             error_msg = f"ERROR in CrossInsightFormatterTool: {e}"
             print(error_msg)
             # Fornisci un output minimo che non interrompa il flusso
-            markdown = f"""
-    # 📊 Error in Root-Cause Narrative
+            error_result = {
+                "markdown": f"""
+# 📊 Error in Root-Cause Narrative
 
-    An error occurred while generating the narrative: {e}
+An error occurred while generating the narrative: {e}
 
-    ## Validation Instructions
+## Validation Instructions
 
-    Please review the input data and ensure:
-    - The KPI is correctly specified
-    - There is sufficient driver data to analyze
-    - The data format is correct
+Please review the input data and ensure:
+- The KPI is correctly specified
+- There is sufficient driver data to analyze
+- The data format is correct
 
-    *You can provide feedback on this error to help improve the process.*
-    """
-            return json.dumps({"markdown": markdown, "error": str(e)})
+*You can provide feedback on this error to help improve the process.*
+""",
+                "error": str(e)
+            }
+            
+            # Salva anche l'errore nel Context Store
+            if mode == "draft":
+                store.save_json("narrative_draft", error_result)
+            else:
+                store.save_json("root_cause_report", error_result)
+                
+            return json.dumps(error_result)
 
     # ---------------------------------------------------------------------#
     # Original implementation
@@ -219,8 +257,27 @@ class CrossInsightFormatterTool(BaseTool):
         if mode not in {"draft", "final"}:
             raise ValueError("mode must be 'draft' or 'final'")
 
-        impact_data = _load_json_like(impact_ranking) if impact_ranking else {}
-        outlier_data = _load_json_like(outlier_report) if outlier_report else {}
+        # Se non abbiamo i dati direttamente, prova a caricarli dal Context Store
+        store = ContextStore.get_instance()
+        
+        if impact_ranking is None:
+            try:
+                impact_ranking = store.load_json("impact_ranking")
+                print(f"DEBUG: Loaded impact_ranking from Context Store")
+            except Exception as e:
+                print(f"WARNING: Failed to load impact_ranking from Context Store: {e}")
+                impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
+                
+        if outlier_report is None:
+            try:
+                outlier_report = store.load_json("outlier_report")
+                print(f"DEBUG: Loaded outlier_report from Context Store")
+            except Exception as e:
+                print(f"WARNING: Failed to load outlier_report from Context Store: {e}")
+                outlier_report = {"outliers": []}
+
+        impact_data = _load_json_like(impact_ranking)
+        outlier_data = _load_json_like(outlier_report)
         feedback_data = json.loads(feedback) if feedback else {}
 
         if mode == "draft":
@@ -231,6 +288,13 @@ class CrossInsightFormatterTool(BaseTool):
         result: Dict[str, Any] = {"markdown": md}
         if output_html:
             result["html"] = _md_to_html(md)
+            
+        # Salva nel Context Store
+        if mode == "draft":
+            store.save_json("narrative_draft", result)
+        else:
+            store.save_json("root_cause_report", result)
+            
         return result
 
     # ------------------------------------------------------------------#
@@ -245,7 +309,13 @@ class CrossInsightFormatterTool(BaseTool):
         k_top: int,
     ) -> str:
         """Render first draft to be validated by user."""
-        top = _top_drivers(impact_ranking.get("ranking", []), k=k_top)
+        # Estrai il ranking dalla struttura corretta
+        ranking = impact_ranking.get("ranking", [])
+        if not ranking and "kpi_name" not in impact_ranking:
+            # Potrebbe essere già il ranking diretto
+            ranking = impact_ranking
+            
+        top = _top_drivers(ranking, k=k_top)
         context = {
             "top_drivers": top,
             "kpi": impact_ranking.get("kpi_name", "KPI"),
@@ -270,8 +340,13 @@ class CrossInsightFormatterTool(BaseTool):
         k_top: int,
     ) -> str:
         """Render final narrative, merging user feedback."""
-        # Simple merge: mark each driver as accepted/rejected/edited
+        # Estrai il ranking dalla struttura corretta
         ranking = impact_ranking.get("ranking", [])
+        if not ranking and "kpi_name" not in impact_ranking:
+            # Potrebbe essere già il ranking diretto
+            ranking = impact_ranking
+            
+        # Simple merge: mark each driver as accepted/rejected/edited
         for driver in ranking:
             fb = feedback.get("drivers", {}).get(driver["driver_name"])
             if fb:

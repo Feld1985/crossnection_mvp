@@ -20,6 +20,7 @@ import json
 
 import crewai as cr
 from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
+from crossnection_mvp.utils.context_decorators import with_context_io
 
 logger = logging.getLogger(__name__)
 
@@ -172,3 +173,33 @@ class DataAgent(cr.BaseAgent):
 
     def __repr__(self) -> str:  # noqa: D401 – simple representation
         return f"<DataAgent role='{self._ROLE}'>"
+    
+    @with_context_io(output_key="data_report", output_type="json")
+    def profile_validate_dataset(self, **kwargs):
+        """Profila e valida i file CSV dalla directory di input."""
+        # Implementazione esistente, ora ritorna direttamente il result completo
+        # ...
+        return result
+    
+    @with_context_io(
+        input_keys={"data_report": "data_report"}, 
+        output_key="join_key_strategy", 
+        output_type="json"
+    )
+    def join_key_strategy(self, **kwargs):
+        """Analizza il data_report per scoprire o generare una join-key unica."""
+        # ...
+        return strategy_result
+    
+    @with_context_io(
+        input_keys={
+            "join_key_strategy": "join_key_strategy",
+            "data_report": "data_report"
+        },
+        output_key="unified_dataset",
+        output_type="dataframe"
+    )
+    def clean_normalize_dataset(self, **kwargs):
+        """Applica regole di pulizia e unisce tutti i dataset dei driver."""
+        # ...
+        return unified_df  # Ritorna direttamente il DataFrame

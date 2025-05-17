@@ -32,6 +32,7 @@ from scipy import stats as sp_stats
 from statsmodels.stats.weightstats import ztest
 from crewai.tools import BaseTool
 from crossnection_mvp.utils.metadata_loader import enrich_driver_names
+from crossnection_mvp.utils.context_store import ContextStore
 
 # ---------------------------------------------------------------------------#
 # Helper utilities
@@ -231,14 +232,27 @@ class CrossStatEngineTool(BaseTool):
         mode = "correlation"  # Default mode
         top_k = 10  # Default top_k
         
-        # Prova a caricare il dataset unificato esistente
+        # Prova a caricare il dataset unificato dal Context Store
         try:
-            unified_path = Path("examples/driver_csvs/unified_dataset.csv")
-            if unified_path.exists():
-                print(f"DEBUG: Found unified dataset at {unified_path}")
-                unified_dataset = pd.read_csv(unified_path)
+            store = ContextStore.get_instance()
+            unified_dataset = store.load_dataframe("unified_dataset")
+            print(f"DEBUG: Successfully loaded unified dataset from Context Store")
         except Exception as e:
-            print(f"ERROR loading unified dataset: {e}")
+            print(f"WARNING: Failed to load unified dataset from Context Store: {e}")
+            unified_dataset = None
+        
+        # Se non abbiamo ancora un dataset dal Context Store, prova il file legacy
+        if unified_dataset is None:
+            try:
+                unified_path = Path("examples/driver_csvs/unified_dataset.csv")
+                if unified_path.exists():
+                    print(f"DEBUG: Found unified dataset at {unified_path}")
+                    unified_dataset = pd.read_csv(unified_path)
+                    # Salva nel Context Store per uso futuro
+                    store = ContextStore.get_instance()
+                    store.save_dataframe("unified_dataset", unified_dataset)
+            except Exception as e:
+                print(f"ERROR loading unified dataset from file: {e}")
         
         # Se non abbiamo ancora un dataset, creane uno dai file originali
         if unified_dataset is None:
@@ -277,8 +291,14 @@ class CrossStatEngineTool(BaseTool):
                 dupes = [c for c in unified_dataset.columns if c.endswith("_dup")]
                 unified_dataset.drop(columns=dupes, inplace=True)
                 
-                # Salva il dataset unificato per uso futuro
+                # Salva nel Context Store
+                store = ContextStore.get_instance()
+                store.save_dataframe("unified_dataset", unified_dataset)
+                
+                # Salva anche il file legacy per compatibilità
+                unified_path = Path("examples/driver_csvs/unified_dataset.csv")
                 unified_dataset.to_csv(unified_path, index=False)
+                
                 print(f"DEBUG: Created and saved unified dataset with shape {unified_dataset.shape}")
             except Exception as e:
                 print(f"ERROR creating unified dataset: {e}")
@@ -289,6 +309,9 @@ class CrossStatEngineTool(BaseTool):
                     "value_temperature": np.random.normal(20, 5, 100),
                     "value_pressure": np.random.normal(1, 0.1, 100)
                 })
+                # Salva anche questo nel Context Store
+                store = ContextStore.get_instance()
+                store.save_dataframe("unified_dataset", unified_dataset)
         
         # Parse input specifico se fornito
         input_data = {}
@@ -303,6 +326,9 @@ class CrossStatEngineTool(BaseTool):
                     try:
                         from io import StringIO
                         unified_dataset = pd.read_csv(StringIO(input))
+                        # Salva nel Context Store
+                        store = ContextStore.get_instance()
+                        store.save_dataframe("unified_dataset", unified_dataset)
                     except Exception as e:
                         print(f"ERROR parsing CSV input: {e}")
                 else:
@@ -332,11 +358,37 @@ class CrossStatEngineTool(BaseTool):
             if "top_k" in input_data:
                 top_k = input_data["top_k"]
             
+            # Se c'è un riferimento al Context Store, usalo
+            if "ref" in input_data and isinstance(input_data["ref"], str):
+                try:
+                    store = ContextStore.get_instance()
+                    ref_path = input_data["ref"]
+                    if ref_path.endswith(".csv"):
+                        unified_dataset = store.load_dataframe(ref_path.split(".")[0])
+                    print(f"DEBUG: Loaded dataset from Context Store reference: {ref_path}")
+                except Exception as e:
+                    print(f"ERROR loading from Context Store reference: {e}")
+            
             # Estrai CSV data se presente
             if "df_csv" in input_data and input_data["df_csv"]:
                 try:
                     from io import StringIO
-                    unified_dataset = pd.read_csv(StringIO(input_data["df_csv"]))
+                    df_csv = input_data["df_csv"]
+                    if isinstance(df_csv, dict) and "path" in df_csv:
+                        # È un riferimento al Context Store
+                        store = ContextStore.get_instance()
+                        try:
+                            path_parts = df_csv["path"].split("/")
+                            artifact_name = path_parts[-1].split(".")[0]
+                            unified_dataset = store.load_dataframe(artifact_name)
+                        except Exception as e:
+                            print(f"ERROR loading from Context Store path: {e}")
+                    else:
+                        # È un contenuto CSV diretto
+                        unified_dataset = pd.read_csv(StringIO(input_data["df_csv"]))
+                        # Salva nel Context Store
+                        store = ContextStore.get_instance()
+                        store.save_dataframe("unified_dataset", unified_dataset)
                 except Exception as e:
                     print(f"ERROR parsing df_csv: {e}")
         
@@ -366,7 +418,21 @@ class CrossStatEngineTool(BaseTool):
         
         try:
             # Tentativo di esecuzione con il dataset corretto
-            return self.run(df_csv=df_csv, kpi=kpi, mode=mode, top_k=top_k)
+            result = self.run(df_csv=df_csv, kpi=kpi, mode=mode, top_k=top_k)
+            
+            # Salva anche il risultato nel Context Store
+            store = ContextStore.get_instance()
+            if mode == "correlation":
+                corr_data = json.loads(result) if isinstance(result, str) else result
+                store.save_json("correlation_matrix", corr_data)
+            elif mode == "ranking":
+                ranking_data = json.loads(result) if isinstance(result, str) else result
+                store.save_json("impact_ranking", ranking_data)
+            elif mode == "outliers":
+                outlier_data = json.loads(result) if isinstance(result, str) else result
+                store.save_json("outlier_report", outlier_data)
+                
+            return result
         except Exception as e:
             error_msg = f"ERROR executing CrossStatEngineTool: {str(e)}"
             print(error_msg)
@@ -382,12 +448,16 @@ class CrossStatEngineTool(BaseTool):
                     
             # Restituisci un JSON di errore che può essere processato dagli agenti
             if mode == "correlation":
-                return json.dumps([
+                fallback_result = json.dumps([
                     {"driver_name": "value_pressure", "method": "pearson", "r": 0.1, "p_value": 0.3},
                     {"driver_name": "value_temperature", "method": "pearson", "r": -0.2, "p_value": 0.2}
                 ])
+                # Salva anche il fallback nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("correlation_matrix", json.loads(fallback_result))
+                return fallback_result
             elif mode == "ranking":
-                return json.dumps({
+                fallback_result = json.dumps({
                     "kpi_name": kpi, 
                     "ranking": [
                         {"driver_name": "value_pressure", "r": 0.1, "p_value": 0.3, "score": 0.3, 
@@ -396,14 +466,22 @@ class CrossStatEngineTool(BaseTool):
                          "strength": "Weak", "explanation": "Weak negative relationship with low confidence"}
                     ]
                 })
+                # Salva anche il fallback nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("impact_ranking", json.loads(fallback_result))
+                return fallback_result
             else:  # outliers
-                return json.dumps({
+                fallback_result = json.dumps({
                     "kpi": kpi, 
                     "outliers": [
                         {"row": 5, "driver": "value_pressure"},
                         {"row": 20, "driver": "value_temperature"}
                     ]
                 })
+                # Salva anche il fallback nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("outlier_report", json.loads(fallback_result))
+                return fallback_result
 
     def run(
         self,
@@ -434,15 +512,29 @@ class CrossStatEngineTool(BaseTool):
         try:
             from io import StringIO
             df = pd.read_csv(StringIO(df_csv)) if isinstance(df_csv, str) else pd.read_csv(df_csv)
+            
+            # Salva il DataFrame nel Context Store per riferimento futuro
+            store = ContextStore.get_instance()
+            store.save_dataframe("unified_dataset", df)
         except Exception as e:
             print(f"ERROR reading df_csv: {e}")
-            # Create a minimal dataset as fallback
-            df = pd.DataFrame({
-                "join_key": range(1, 101),
-                "value_speed": np.random.normal(100, 10, 100),
-                "value_temperature": np.random.normal(20, 5, 100),
-                "value_pressure": np.random.normal(1, 0.1, 100)
-            })
+            # Prova a caricare dal Context Store
+            try:
+                store = ContextStore.get_instance()
+                df = store.load_dataframe("unified_dataset")
+                print(f"Loaded unified dataset from Context Store as fallback")
+            except Exception as store_err:
+                print(f"ERROR loading from Context Store: {store_err}")
+                # Create a minimal dataset as fallback
+                df = pd.DataFrame({
+                    "join_key": range(1, 101),
+                    "value_speed": np.random.normal(100, 10, 100),
+                    "value_temperature": np.random.normal(20, 5, 100),
+                    "value_pressure": np.random.normal(1, 0.1, 100)
+                })
+                # Salva anche questo nel Context Store
+                store = ContextStore.get_instance()
+                store.save_dataframe("unified_dataset", df)
             
             # Ensure KPI exists
             if kpi not in df.columns:
@@ -451,26 +543,38 @@ class CrossStatEngineTool(BaseTool):
         if mode == "correlation":
             try:
                 corr = correlation_matrix(df, kpi=kpi)
-                return corr.to_json(orient="records")
+                result = corr.to_json(orient="records")
+                # Salva nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("correlation_matrix", json.loads(result))
+                return result
             except Exception as e:
                 print(f"ERROR in correlation_matrix: {e}")
-                return json.dumps([
+                fallback_result = json.dumps([
                     {"driver_name": "value_pressure", "method": "pearson", "r": 0.1, "p_value": 0.3},
                     {"driver_name": "value_temperature", "method": "pearson", "r": -0.2, "p_value": 0.2}
                 ])
+                # Salva il fallback nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("correlation_matrix", json.loads(fallback_result))
+                return fallback_result
 
         if mode == "ranking":
             try:
                 corr_df = correlation_matrix(df, kpi=kpi)
                 ranked = impact_ranking(corr_df, top_k=top_k)
-                return json.dumps(
+                result = json.dumps(
                     {"kpi_name": kpi, "ranking": ranked},
                     ensure_ascii=False,
                     indent=2,
                 )
+                # Salva nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("impact_ranking", json.loads(result))
+                return result
             except Exception as e:
                 print(f"ERROR in impact_ranking: {e}")
-                return json.dumps({
+                fallback_result = json.dumps({
                     "kpi_name": kpi, 
                     "ranking": [
                         {"driver_name": "value_pressure", "r": 0.1, "p_value": 0.3, "score": 0.3, 
@@ -479,20 +583,32 @@ class CrossStatEngineTool(BaseTool):
                          "strength": "Weak", "explanation": "Weak negative relationship with low confidence"}
                     ]
                 })
+                # Salva il fallback nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("impact_ranking", json.loads(fallback_result))
+                return fallback_result
 
         if mode == "outliers":
             try:
                 report = outlier_report(df, kpi=kpi)
-                return json.dumps(report, ensure_ascii=False, indent=2)
+                result = json.dumps(report, ensure_ascii=False, indent=2)
+                # Salva nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("outlier_report", json.loads(result))
+                return result
             except Exception as e:
                 print(f"ERROR in outlier_report: {e}")
-                return json.dumps({
+                fallback_result = json.dumps({
                     "kpi": kpi, 
                     "outliers": [
                         {"row": 5, "driver": "value_pressure"},
                         {"row": 20, "driver": "value_temperature"}
                     ]
                 })
+                # Salva il fallback nel Context Store
+                store = ContextStore.get_instance()
+                store.save_json("outlier_report", json.loads(fallback_result))
+                return fallback_result
 
         raise ValueError("mode must be 'correlation', 'ranking', or 'outliers'")
 
@@ -530,7 +646,11 @@ class CrossStatEngineTool(BaseTool):
                     print(f"Error computing correlation for {col}: {e}")
                     rows.append({"driver_name": col, "method": method, "r": 0, "p_value": 1.0})
             
-            return json.dumps(rows)
+            result = json.dumps(rows)
+            # Salva nel Context Store
+            store = ContextStore.get_instance()
+            store.save_json("correlation_matrix", json.loads(result))
+            return result
             
         elif mode == "ranking":
             # Calcola ranking manualmente
@@ -567,7 +687,11 @@ class CrossStatEngineTool(BaseTool):
             if top_k is not None and top_k > 0 and len(ranking) > top_k:
                 ranking = ranking[:top_k]
                 
-            return json.dumps({"kpi_name": kpi, "ranking": ranking})
+            result = json.dumps({"kpi_name": kpi, "ranking": ranking})
+            # Salva nel Context Store
+            store = ContextStore.get_instance()
+            store.save_json("impact_ranking", json.loads(result))
+            return result
             
         else:  # outliers
             # Rileva outliers manualmente
@@ -602,7 +726,11 @@ class CrossStatEngineTool(BaseTool):
                 for idx in combined:
                     outliers.append({"row": int(idx), "driver": col})
                     
-            return json.dumps({"kpi": kpi, "outliers": outliers})
+            result = json.dumps({"kpi": kpi, "outliers": outliers})
+            # Salva nel Context Store
+            store = ContextStore.get_instance()
+            store.save_json("outlier_report", json.loads(result))
+            return result
 
     def _fallback_correlation(self, df: pd.DataFrame, kpi: str) -> pd.DataFrame:
         """Manual correlation calculation for fallback."""

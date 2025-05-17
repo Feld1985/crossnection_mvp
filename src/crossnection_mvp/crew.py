@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 import crewai as cr
 from crewai.tools import BaseTool
 from crossnection_mvp.utils.token_counter import TokenCounterLLM
+from crossnection_mvp.utils.context_store import ContextStore
 
 # ----------------------------------------------------------------------------
 # Percorsi di configurazione
@@ -26,6 +27,7 @@ class CrossnectionMvpCrew:
         self._crew: cr.Crew | None = None
         self._agents: Dict[str, cr.Agent] = {}
         self._tasks: List[cr.Task] = []
+        self._store = ContextStore.get_instance(base_dir="./flow_data")
 
     # ---------------------------------------------------------------------
     # Costruzione / caching
@@ -179,6 +181,9 @@ class CrossnectionMvpCrew:
 
     def run(self, inputs: Dict[str, Any]) -> Any:
         """Esegue la crew sul dataset/input fornito dall'utente."""
+        # Aggiunge la session_id agli input
+        inputs["context_session_id"] = self._store.session_id
+        
         # Debugging e validazione input
         print(f"Input parameters received: {inputs}")
         

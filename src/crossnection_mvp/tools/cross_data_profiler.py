@@ -28,6 +28,7 @@ import uuid
 import pandas as pd
 import great_expectations as ge
 from crewai.tools import BaseTool
+from crossnection_mvp.utils.context_store import ContextStore
 
 __all__ = ["CrossDataProfilerTool"]
 
@@ -136,7 +137,9 @@ class CrossDataProfilerTool(BaseTool):
         dict
             {
               "unified_dataset_csv": str,
-              "data_report_json": str
+              "data_report_json": str,
+              "unified_dataset_ref": str,  # Nuovo: riferimento al Context Store
+              "data_report_ref": str       # Nuovo: riferimento al Context Store
             }
         """
         # QUICK FIX - Fix per il problema del percorso
@@ -146,9 +149,19 @@ class CrossDataProfilerTool(BaseTool):
         if isinstance(csv_folder, str) and (csv_folder.startswith("join_key,timestamp,value") or 
                                         csv_folder.startswith('"join_key,timestamp,value')):
             print(f"DEBUG: Detected direct CSV content in run() method")
+            # Salva il contenuto CSV nel Context Store
+            store = ContextStore.get_instance()
+            from io import StringIO
+            df = pd.read_csv(StringIO(csv_folder.replace('"', '')))
+            unified_path = store.save_dataframe("unified_dataset", df)
+            report = {"tables": [], "note": "Direct CSV input used"}
+            report_path = store.save_json("data_report", report)
+            
             return {
                 "unified_dataset_csv": csv_folder.replace('"', ''),
-                "data_report_json": json.dumps({"tables": [], "note": "Direct CSV input used"})
+                "data_report_json": json.dumps(report),
+                "unified_dataset_ref": unified_path,
+                "data_report_ref": report_path
             }
         
         # Validazione e correzione percorso
@@ -196,25 +209,29 @@ class CrossDataProfilerTool(BaseTool):
         key = self._discover_join_key(dataframes, profile)
         unified = self._merge_and_clean(dataframes, key)
 
-        # Salva il dataset unificato come file per evitare di sovraccaricarlo nel contesto
-        unified_csv = unified.to_csv(index=False)
+        # Salva nel Context Store
+        store = ContextStore.get_instance()
+        unified_path = store.save_dataframe("unified_dataset", unified)
+        report_path = store.save_json("data_report", profile)
         
-        # Invece di restituire l'intero dataset, salviamolo su file e restituiamo solo un riferimento/sommario
-        unified_path = Path("examples/driver_csvs/unified_dataset.csv")
-        with open(unified_path, "w") as f:
+        # Salva il dataset unificato come file per compatibilità con codice esistente
+        unified_csv = unified.to_csv(index=False)
+        legacy_path = Path("examples/driver_csvs/unified_dataset.csv")
+        with open(legacy_path, "w") as f:
             f.write(unified_csv)
         
-        # Ora crea un sommario del dataset invece dell'intero contenuto
+        # Crea un sommario del dataset
         rows, cols = unified.shape
         column_summary = ", ".join(unified.columns.tolist())
-        dataset_summary = f"Unified dataset saved at {unified_path}. Shape: {rows} rows x {cols} columns. Columns: {column_summary}"
+        dataset_summary = f"Unified dataset saved. Shape: {rows} rows x {cols} columns. Columns: {column_summary}"
         print(f"DEBUG: {dataset_summary}")
 
-        # Return artifacts in the expected format, ma con sommario invece del CSV completo
+        # Return artifacts con riferimenti al Context Store
         return {
-            "unified_dataset_csv": dataset_summary,  # Sommario invece dell'intero CSV
-            "unified_dataset_path": str(unified_path),  # Path al file per poterlo recuperare dopo
-            "data_report_json": json.dumps(profile, ensure_ascii=False, indent=2)
+            "unified_dataset_csv": unified_csv,
+            "data_report_json": json.dumps(profile, ensure_ascii=False, indent=2),
+            "unified_dataset_ref": unified_path,
+            "data_report_ref": report_path
         }
 
     # ------------------------------------------------------------------

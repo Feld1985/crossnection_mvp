@@ -15,10 +15,9 @@ profile_validate_dataset:
     _original_csv_folder: "{{ csv_folder }}"  # Mantieni riferimento originale
     kpi: "{{ kpi }}"
     mode: "full_pipeline"
-  output_key: data_report
+  output_key: data_report_ref  # Riferimento al file nel Context Store
   expected_output: >
-    A JSON-formatted report with schema validation results, data types,
-    null counts, and anomaly flags for each column.
+    A reference to a JSON report with schema validation results stored in Context Store.
 
 join_key_strategy:
   agent: data_agent
@@ -26,10 +25,10 @@ join_key_strategy:
     Analyze data_report to discover or generate a unique join-key
     that can correlate all driver datasets. If no clear key, propose matching rules.
   input_key:
-    - data_report
-  output_key: join_key_strategy
+    - data_report_ref  # Riferimento al file nel Context Store
+  output_key: join_key_strategy_ref
   expected_output: >
-    A strategy object defining the join key or rules for composite/fuzzy merging.
+    A reference to a strategy object defining the join key stored in Context Store.
 
 clean_normalize_dataset:
   agent: data_agent
@@ -37,11 +36,11 @@ clean_normalize_dataset:
     Apply cleaning rules (imputations, type conversions) and merge all driver
     datasets into a single table using the join-key strategy.
   input_key:
-    - join_key_strategy
-    - data_report
-  output_key: unified_dataset
+    - join_key_strategy_ref
+    - data_report_ref
+  output_key: unified_dataset_ref
   expected_output: >
-    A cleaned, normalized, relational dataset (CSV or table) ready for analysis.
+    A reference to a cleaned, normalized dataset stored in Context Store, ready for analysis.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STATS AGENT TASKS
@@ -53,12 +52,12 @@ compute_correlations:
     Compute pairwise statistical correlations between each driver and the KPI,
     including significance tests.
   input:
-    df_csv: "{{ unified_dataset }}"
+    df_csv: "{{ unified_dataset_ref }}"  # Riferimento al Context Store
     mode: "correlation"
     kpi: "value_speed"  # Default KPI if user doesn't specify
-  output_key: correlation_matrix
+  output_key: correlation_matrix_ref
   expected_output: >
-    A JSON array with driver names, correlation coefficients, and p-values.
+    A reference to a JSON array with driver names, correlation coefficients, and p-values.
 
 rank_impact:
   agent: stats_agent
@@ -66,13 +65,13 @@ rank_impact:
     Rank drivers by their impact on the KPI based on correlation strength
     and statistical significance.
   input:
-    df_csv: "{{ unified_dataset }}"  # Fornisci direttamente il dataset anche qui
+    df_csv: "{{ unified_dataset_ref }}"  # Riferimento al Context Store
     kpi: "value_speed"  # Default KPI if user doesn't specify 
     mode: "ranking"
-    correlation_matrix: "{{ correlation_matrix }}"  # Passa comunque la matrice di correlazione
-  output_key: impact_ranking
+    correlation_matrix: "{{ correlation_matrix_ref }}"  # Riferimento al Context Store
+  output_key: impact_ranking_ref
   expected_output: >
-    A ranked list of drivers by their impact on the KPI based on correlation strength and significance.
+    A reference to a ranked list of drivers by their impact on the KPI.
 
 detect_outliers:
   agent: stats_agent
@@ -80,12 +79,12 @@ detect_outliers:
     Identify outliers in the driver datasets and flag data points that may
     distort the analysis.
   input:
-    df_csv: "{{ unified_dataset }}"
+    df_csv: "{{ unified_dataset_ref }}"  # Riferimento al Context Store
     kpi: "value_speed"  # Default KPI
     mode: "outliers"
-  output_key: outlier_report
+  output_key: outlier_report_ref
   expected_output: >
-    A JSON report identifying outliers in driver datasets that may distort the analysis.
+    A reference to a JSON report identifying outliers in driver datasets.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # EXPLAIN AGENT TASKS
@@ -97,20 +96,19 @@ draft_root_cause_narrative:
     Generate a draft narrative of the top root causes, combining impact_ranking
     and outlier_report into coherent insights.
   input_key:
-    - impact_ranking
-    - outlier_report
-  output_key: narrative_draft
+    - impact_ranking_ref  # Riferimento al Context Store
+    - outlier_report_ref  # Riferimento al Context Store
+  output_key: narrative_draft_ref
   human_input: true
   expected_output: >
-    A markdown-formatted draft report listing prioritized root causes with
-    explanations and statistical annotations.
+    A reference to a markdown-formatted draft report listing prioritized root causes.
 
 finalize_root_cause_report:
   agent: explain_agent
   description: |
     Incorporate user feedback from the draft phase and produce the final
     validated root-cause report.
-  input_key: narrative_draft
-  output_key: root_cause_report
+  input_key: narrative_draft_ref  # Riferimento al Context Store
+  output_key: root_cause_report_ref
   expected_output: >
-    A finalized markdown or JSON report of root causes, ready for export or UI rendering.
+    A reference to a finalized report of root causes, ready for export or UI rendering.

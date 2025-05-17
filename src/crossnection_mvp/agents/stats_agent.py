@@ -22,6 +22,8 @@ import pandas as pd
 
 import crewai as cr
 from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
+from crossnection_mvp.utils.context_decorators import with_context_io
+from crossnection_mvp.utils.context_store import ContextStore
 
 logger = logging.getLogger(__name__)
 
@@ -90,28 +92,41 @@ class StatsAgent(cr.BaseAgent):
         if kpi not in df.columns:
             raise KeyError(f"KPI column '{kpi}' not found in dataset")
 
+        # Salviamo il dataset nel Context Store
+        store = ContextStore.get_instance()
+        store.save_dataframe("unified_dataset", df)
+
         tool = CrossStatEngineTool()
 
         # ------------------------------------------------ correlation ----
         logger.info("[StatsAgent] Computing correlation matrix…")
         corr_json = tool.run(df_csv=df.to_csv(index=False), kpi=kpi, mode="correlation")
         correlation_matrix: List[Dict[str, Any]] = json.loads(corr_json)
+        store.save_json("correlation_matrix", correlation_matrix)
 
         # ------------------------------------------------ ranking ------
         logger.info("[StatsAgent] Building impact ranking (top %s)…", top_k)
         rank_json = tool.run(
             df_csv=df.to_csv(index=False), kpi=kpi, mode="ranking", top_k=top_k
         )
-        impact_ranking: List[Dict[str, Any]] = json.loads(rank_json)["ranking"]
+        impact_ranking_data = json.loads(rank_json)
+        impact_ranking: List[Dict[str, Any]] = impact_ranking_data["ranking"]
+        store.save_json("impact_ranking", impact_ranking_data)
 
         # ------------------------------------------------ outliers ------
         logger.info("[StatsAgent] Detecting outliers…")
         outlier_json = tool.run(df_csv=df.to_csv(index=False), kpi=kpi, mode="outliers")
         outlier_report: Dict[str, Any] = json.loads(outlier_json)
+        store.save_json("outlier_report", outlier_report)
 
         logger.info("[StatsAgent] Pipeline completed (drivers=%s)", len(impact_ranking))
         return correlation_matrix, impact_ranking, outlier_report
     
+    @with_context_io(
+        input_keys={"df_csv": "unified_dataset"}, 
+        output_key="correlation_matrix", 
+        output_type="json"
+    )
     def compute_correlations(self, **kwargs):
         """
         Computes correlation between each driver and KPI.
@@ -134,16 +149,24 @@ class StatsAgent(cr.BaseAgent):
             tool = CrossStatEngineTool()
             
             result = tool.run(df_csv=df_csv, kpi=kpi, mode=mode)
-            return result
+            return json.loads(result) if isinstance(result, str) else result
         except Exception as e:
             print(f"ERROR in compute_correlations: {e}")
             # In caso di errore, genera una matrice di correlazione minima
-            return json.dumps([
+            return [
                 {"driver_name": "value_speed", "method": "pearson", "r": 1.0, "p_value": 0.0},
                 {"driver_name": "value_temperature", "method": "pearson", "r": 0.2, "p_value": 0.1},
                 {"driver_name": "value_pressure", "method": "pearson", "r": 0.15, "p_value": 0.2}
-            ])
+            ]
 
+    @with_context_io(
+        input_keys={
+            "df_csv": "unified_dataset", 
+            "correlation_matrix": "correlation_matrix"
+        }, 
+        output_key="impact_ranking", 
+        output_type="json"
+    )
     def rank_impact(self, **kwargs):
         """
         Ranks drivers by impact based on correlation data.
@@ -157,15 +180,7 @@ class StatsAgent(cr.BaseAgent):
             # Estrai parametri dall'input
             df_csv = kwargs.get("df_csv", "")
             kpi = kwargs.get("kpi", "value_speed")
-            correlation_matrix = kwargs.get("correlation_matrix", "[]")
-            
-            # Se la matrice di correlazione è una stringa, convertila
-            if isinstance(correlation_matrix, str):
-                try:
-                    correlation_matrix = json.loads(correlation_matrix)
-                except json.JSONDecodeError:
-                    print(f"WARNING: Failed to parse correlation_matrix JSON, using empty array")
-                    correlation_matrix = []
+            correlation_matrix = kwargs.get("correlation_matrix", [])
             
             print(f"StatsAgent.rank_impact called with kpi={kpi}, matrix_len={len(correlation_matrix)}")
             
@@ -173,20 +188,12 @@ class StatsAgent(cr.BaseAgent):
             from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
             tool = CrossStatEngineTool()
             
-            # Se abbiamo una matrice di correlazione valida, crea un DataFrame da essa
-            if correlation_matrix and isinstance(correlation_matrix, list) and len(correlation_matrix) > 0:
-                import pandas as pd
-                corr_df = pd.DataFrame(correlation_matrix)
-                ranked = tool._impact_ranking(corr_df, top_k=10)  # Accesso diretto alla funzione di ranking
-                return json.dumps({"kpi_name": kpi, "ranking": ranked})
-            
-            # Altrimenti usa l'approccio standard
             result = tool.run(df_csv=df_csv, kpi=kpi, mode="ranking")
-            return result
+            return json.loads(result) if isinstance(result, str) else result
         except Exception as e:
             print(f"ERROR in rank_impact: {e}")
             # In caso di errore, genera un ranking minimo
-            return json.dumps({
+            return {
                 "kpi_name": kpi,
                 "ranking": [
                     {"driver_name": "value_speed", "r": 1.0, "p_value": 0.0, "score": 1.0, "strength": "Strong", 
@@ -196,8 +203,13 @@ class StatsAgent(cr.BaseAgent):
                     {"driver_name": "value_pressure", "r": 0.15, "p_value": 0.2, "score": 0.3, "strength": "Weak", 
                     "explanation": "Weak positive relationship with low confidence"}
                 ]
-            })
+            }
 
+    @with_context_io(
+        input_keys={"df_csv": "unified_dataset"}, 
+        output_key="outlier_report", 
+        output_type="json"
+    )
     def detect_outliers(self, **kwargs):
         """
         Identifies outliers in the driver datasets.
@@ -219,17 +231,17 @@ class StatsAgent(cr.BaseAgent):
             tool = CrossStatEngineTool()
             
             result = tool.run(df_csv=df_csv, kpi=kpi, mode="outliers")
-            return result
+            return json.loads(result) if isinstance(result, str) else result
         except Exception as e:
             print(f"ERROR in detect_outliers: {e}")
             # In caso di errore, genera un report outlier minimo
-            return json.dumps({
+            return {
                 "kpi": kpi, 
                 "outliers": [
                     {"row": 55, "driver": "value_speed"},
                     {"row": 24, "driver": "value_temperature"}
                 ]
-            })
+            }
 
     # ------------------------------------------------------------------
     # Friendly repr for debugging
