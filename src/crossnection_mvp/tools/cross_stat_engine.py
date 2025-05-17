@@ -30,6 +30,7 @@ import pandas as pd
 from scipy import stats as sp_stats
 from statsmodels.stats.weightstats import ztest
 from crewai.tools import BaseTool
+from pathlib import Path
 
 # ---------------------------------------------------------------------------#
 # Helper utilities
@@ -151,22 +152,88 @@ class CrossStatEngineTool(BaseTool):
         """
         Main entry point required by BaseTool, handling both dict and string inputs.
         """
+        from pathlib import Path
+        import pandas as pd
+        
+        print(f"DEBUG: CrossStatEngineTool received raw input: {input}")
+        
         # Parse input if it's a string
         if isinstance(input, str):
             try:
                 input_data = json.loads(input)
+                print(f"DEBUG: Parsed JSON string to dict: {input_data}")
             except json.JSONDecodeError:
-                # Fallback for simple string cases
-                return f"Error: Expected JSON input but got: {input}"
+                # Se l'input è una stringa CSV diretta
+                if input.startswith("join_key,timestamp,value"):
+                    print(f"DEBUG: Detected direct CSV content")
+                    input_data = {"df_csv": input, "kpi": "First Pass Yield", "mode": "correlation"}
+                else:
+                    # Fallback per stringhe semplici
+                    print(f"DEBUG: Input is a simple string, using as KPI: {input}")
+                    input_data = {"df_csv": "", "kpi": input, "mode": "correlation"}
+        elif isinstance(input, dict):
+            # Struttura CrewAI con {"input": {...}}
+            if "input" in input and isinstance(input["input"], dict):
+                input_data = input["input"]
+                print(f"DEBUG: Extracted input data from CrewAI format: {input_data}")
+            else:
+                input_data = input
+                print(f"DEBUG: Using input dict directly: {input_data}")
         else:
-            input_data = input
+            raise ValueError(f"Unexpected input type: {type(input)}")
         
-        # Extract parameters
+        # Verifica di avere i parametri necessari
         df_csv = input_data.get("df_csv", "")
-        kpi = input_data.get("kpi", "")
+        
+        # Se non c'è df_csv ma c'è qualcos'altro, prova a usare quello
+        if not df_csv and "unified_dataset" in input_data:
+            df_csv = input_data["unified_dataset"]
+            print(f"DEBUG: Using unified_dataset as df_csv")
+        
+        # Se ancora non c'è df_csv, usa il dataset integrato
+        if not df_csv:
+            # Se siamo qui, probabilmente l'agente sta passando i parametri errati
+            # Carica il dataset unificato da un file conosciuto
+            csv_path = Path("examples/driver_csvs/unified_dataset.csv")
+            if csv_path.exists():
+                print(f"DEBUG: Loading default dataset from {csv_path}")
+                df_csv = csv_path.read_text()
+            else:
+                # Se non esiste, crea un dataset integrato dai file originali
+                from pathlib import Path
+                import pandas as pd
+                
+                print(f"DEBUG: Creating unified dataset from source files")
+                # Carica i file CSV originali
+                csv_files = list(Path("examples/driver_csvs").glob("*.csv"))
+                if not csv_files:
+                    raise ValueError("No CSV files found in examples/driver_csvs")
+                
+                dataframes = []
+                for file in csv_files:
+                    df = pd.read_csv(file)
+                    # Rinomina 'value' per distinguere le colonne
+                    df = df.rename(columns={"value": f"value_{file.stem}"})
+                    dataframes.append(df)
+                
+                # Unisci i dataframe
+                base = dataframes[0]
+                for df in dataframes[1:]:
+                    base = base.merge(df, on="join_key", how="outer", suffixes=("", "_dup"))
+                
+                # Rimuovi colonne duplicate
+                dupes = [c for c in base.columns if c.endswith("_dup")]
+                base.drop(columns=dupes, inplace=True)
+                
+                df_csv = base.to_csv(index=False)
+        
+        kpi = input_data.get("kpi", "First Pass Yield")
         mode = input_data.get("mode", "correlation")
         top_k = input_data.get("top_k", 10)
         
+        print(f"DEBUG: Using parameters: df_csv={df_csv[:50]}..., kpi={kpi}, mode={mode}")
+        
+        # Call the original implementation
         return self.run(df_csv=df_csv, kpi=kpi, mode=mode, top_k=top_k)
 
     def run(

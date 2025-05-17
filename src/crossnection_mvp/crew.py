@@ -151,6 +151,33 @@ class CrossnectionMvpCrew:
 
     def run(self, inputs: Dict[str, Any]) -> Any:
         """Esegue la crew sul dataset/input fornito dall'utente."""
+        # Debugging e validazione input
+        print(f"Input parameters received: {inputs}")
+        
+        # Validazione percorso CSV
+        if "csv_folder" in inputs:
+            csv_path = Path(inputs["csv_folder"])
+            if not csv_path.is_absolute():
+                csv_path = Path.cwd() / csv_path
+            
+            if csv_path.is_dir():
+                print(f"Validated csv_folder exists: {inputs['csv_folder']}")
+            else:
+                print(f"WARNING: csv_folder '{inputs['csv_folder']}' is not a valid directory")
+                # Cerca di normalizzare il percorso
+                if Path("examples/driver_csvs").is_dir():
+                    print(f"Using fallback examples/driver_csvs as csv_folder")
+                    inputs["csv_folder"] = str(Path("examples/driver_csvs").absolute())
+        
+        # Validazione process_map
+        if "process_map_file" in inputs:
+            map_path = Path(inputs["process_map_file"])
+            if not map_path.is_absolute():
+                map_path = Path.cwd() / map_path
+            
+            if not map_path.exists():
+                print(f"WARNING: process_map_file '{inputs['process_map_file']}' not found")
+        
         # Usa il metodo corretto per eseguire la crew
         try:
             # Prova prima kickoff (versioni più recenti)

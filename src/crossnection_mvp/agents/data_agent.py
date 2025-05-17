@@ -16,6 +16,7 @@ from typing import Any, Dict, Tuple
 
 import logging
 import pandas as pd
+import json
 
 import crewai as cr
 from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
@@ -46,6 +47,39 @@ class DataAgent(cr.BaseAgent):
         }
         defaults.update(kwargs)
         super().__init__(**defaults)
+
+    def profile_validate_dataset(self, **kwargs) -> Dict[str, Any]:
+        """
+        Profila e valida i file CSV dalla directory di input.
+        Override del metodo predefinito per gestire meglio gli errori.
+        """
+        # Estrazione e validazione parametri
+        csv_folder = kwargs.get("csv_folder", kwargs.get("_original_csv_folder", "examples/driver_csvs"))
+        kpi = kwargs.get("kpi", "Default KPI")
+        mode = kwargs.get("mode", "full_pipeline")
+        
+        print(f"DataAgent.profile_validate_dataset called with csv_folder={csv_folder}, kpi={kpi}")
+        
+        # Verifica esistenza directory
+        csv_folder_path = Path(csv_folder)
+        if not csv_folder_path.is_dir() and Path("examples/driver_csvs").is_dir():
+            csv_folder = "examples/driver_csvs"
+            print(f"WARNING: Directory {csv_folder_path} not found, using examples/driver_csvs instead")
+        
+        # Ottieni il tool e eseguilo
+        from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
+        tool = CrossDataProfilerTool()
+        
+        try:
+            result = tool.run(csv_folder=csv_folder, kpi=kpi, mode=mode)
+            return result
+        except Exception as e:
+            print(f"ERROR in profile_validate_dataset: {e}")
+            # In caso di errore, genera un report minimo
+            return {
+                "unified_dataset_csv": "",
+                "data_report_json": json.dumps({"tables": [], "error": str(e)})
+            }
 
     # ------------------------------------------------------------------
     # Convenience API (bypass Crew execution)

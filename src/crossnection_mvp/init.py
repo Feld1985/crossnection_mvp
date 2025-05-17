@@ -3,7 +3,7 @@
 Exposes package version and convenience import for the crew builder so that
 external callers can simply do:
 
-    from crossnection import get_crew
+    from crossnection_mvp import get_crew
 
 which returns an instance of `CrossnectionMvpCrew` ready to run.
 """

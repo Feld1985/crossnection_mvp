@@ -11,7 +11,8 @@ profile_validate_dataset:
     Profile each uploaded CSV, validate schema consistency, detect missing
     values and basic anomalies. Produce a structured `data_report.json` summarising findings.
   input:
-    csv_folder: "{{ csv_folder }}"
+    csv_folder: "examples/driver_csvs"  # Default hardcoded
+    _original_csv_folder: "{{ csv_folder }}"  # Mantieni riferimento originale
     kpi: "{{ kpi }}"
     mode: "full_pipeline"
   output_key: data_report

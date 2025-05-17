@@ -11,7 +11,7 @@ description = "Root‑Cause Discovery MVP built with CrewAI multi‑agent archit
 authors = [{ name = "Marco Pericci", email = "marco@marcopericci.com" }]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 # Runtime dependencies
 dependencies = [
@@ -25,6 +25,8 @@ dependencies = [
   "numpy>=1.26",
   "markdown>=3.5",
   "crewai-tools>=0.3.0,<1.0.0",
+  "typer[all]",
+  "numpy",
   "jinja2>=3.1"
 ]
 
@@ -43,6 +45,9 @@ Repository = "https://github.com/Feld1985/crossnection_mvp"
 [project.scripts]
 # CLI entry‑point → `crossnection`
 crossnection = "crossnection_mvp.main:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/crossnection_mvp"]
