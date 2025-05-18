@@ -211,7 +211,7 @@ def outlier_report(df: pd.DataFrame, *, kpi: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------#
 
 class CrossStatEngineToolSchema(BaseModel):
-    input: Union[str, Dict[str, Any]]
+    input: Optional[Union[str, Dict[str, Any]]] = None
     
 class CrossStatEngineTool(BaseTool):
     """

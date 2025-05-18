@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union, ForwardRef
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import json
 import uuid
@@ -33,7 +33,10 @@ from crossnection_mvp.utils.context_store import ContextStore
 __all__ = ["CrossDataProfilerTool"]
 
 class CrossDataProfilerToolSchema(BaseModel):
-    input: Union[str, Dict[str, Any]]
+    input: Union[str, Dict[str, Any]] = None
+    
+    class Config:
+        extra = "allow"  # Permette campi aggiuntivi non dichiarati nello schema
         
 class CrossDataProfilerTool(BaseTool):
     """Validate, profile and merge driver CSV datasets."""
@@ -53,13 +56,25 @@ class CrossDataProfilerTool(BaseTool):
         else:
             print(message)
 
-    def _run(self, input: Union[str, Dict[str, Any]]) -> str:
+    def _run(self, input: Union[str, Dict[str, Any]] = None, **kwargs) -> str:
         """
         Main entry‑point expected by CrewAI BaseTool.
         
         Arguments can be passed as JSON string or dictionary.
         """
         self.print_truncated(f"DEBUG: CrossDataProfilerTool received raw input: {input}")
+        
+        # Gestisci il caso in cui l'input arriva come kwargs invece che sotto la chiave 'input'
+        if input is None and kwargs:
+            # Adatta la struttura per renderla compatibile
+            input = kwargs
+            
+        # Intercetta input errati o placeholder comuni
+        if input == "user_uploaded_csv_path" or input == {"input": "user_uploaded_csv_path"} or (
+            isinstance(input, dict) and input.get("input") == "user_uploaded_csv_path"):
+            # Usa l'esempio predefinito
+            input = {"csv_folder": "examples/driver_csvs", "kpi": "value_pressure", "mode": "full_pipeline"}
+            self.print_truncated(f"DEBUG: Detected placeholder input, using default values: {input}")
         
         # Gestione input da CrewAI con struttura diversa
         if isinstance(input, dict):
@@ -108,7 +123,7 @@ class CrossDataProfilerTool(BaseTool):
         print(f"DEBUG: Extracted csv_folder: {csv_folder}")
         
         # Validazione e correzione del path
-        if not csv_folder or csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files"] or (
+        if not csv_folder or csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files", "user_uploaded_csv_path"] or (
             isinstance(csv_folder, str) and not Path(csv_folder).is_dir() and Path("examples/driver_csvs").is_dir()
         ):
             corrected_path = "examples/driver_csvs"
@@ -168,7 +183,7 @@ class CrossDataProfilerTool(BaseTool):
             }
         
         # Validazione e correzione percorso
-        if csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files"]:
+        if csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files", "user_uploaded_csv_path"]:
             print(f"WARNING: Detected invalid path '{csv_folder}', correcting to 'examples/driver_csvs'")
             csv_folder = "examples/driver_csvs"
         

@@ -12,6 +12,8 @@ data_agent:
     Ingest user‑uploaded CSV driver datasets, profile & validate their schema,
     discover (or synthesise) a unique join‑key, and output a single cleaned,
     normalised table ready for statistical analysis.
+    When using the cross_data_profiler tool, always specify "csv_folder" with the actual folder path,
+    such as "examples/driver_csvs", and specify "kpi" and "mode" parameters.
   llm:
     model: gpt-4o-mini
     temperature: 0.0
