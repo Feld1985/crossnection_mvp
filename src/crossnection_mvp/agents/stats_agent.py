@@ -24,6 +24,7 @@ import crewai as cr
 from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
 from crossnection_mvp.utils.context_decorators import with_context_io
 from crossnection_mvp.utils.context_store import ContextStore
+from crossnection_mvp.utils.error_handling import with_robust_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,15 @@ class StatsAgent(cr.BaseAgent):
     # Convenience API (bypass Crew execution)
     # ------------------------------------------------------------------
 
+    @with_robust_error_handling(
+        log_level="ERROR",
+        stage_name="stats_pipeline",
+        custom_fallback={
+            "correlation_matrix": [],
+            "impact_ranking": [],
+            "outlier_report": {"outliers": []}
+        }
+    )
     def run_stats_pipeline(
         self,
         unified_dataset: str | Path | pd.DataFrame,
@@ -127,6 +137,10 @@ class StatsAgent(cr.BaseAgent):
         output_key="correlation_matrix", 
         output_type="json"
     )
+    @with_robust_error_handling(
+        stage_name="compute_correlations",
+        store_error_key="correlation_matrix"
+    )
     def compute_correlations(self, **kwargs):
         """
         Computes correlation between each driver and KPI.
@@ -136,28 +150,19 @@ class StatsAgent(cr.BaseAgent):
         if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
             self.llm.task_name = "compute_correlations"
             
-        try:
-            # Estrai parametri dall'input
-            df_csv = kwargs.get("df_csv", "")
-            kpi = kwargs.get("kpi", "value_speed")
-            mode = kwargs.get("mode", "correlation")
-            
-            print(f"StatsAgent.compute_correlations called with kpi={kpi}, mode={mode}, df_csv_len={len(df_csv) if df_csv else 0}")
-            
-            # Ottieni lo strumento e eseguilo
-            from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
-            tool = CrossStatEngineTool()
-            
-            result = tool.run(df_csv=df_csv, kpi=kpi, mode=mode)
-            return json.loads(result) if isinstance(result, str) else result
-        except Exception as e:
-            print(f"ERROR in compute_correlations: {e}")
-            # In caso di errore, genera una matrice di correlazione minima
-            return [
-                {"driver_name": "value_speed", "method": "pearson", "r": 1.0, "p_value": 0.0},
-                {"driver_name": "value_temperature", "method": "pearson", "r": 0.2, "p_value": 0.1},
-                {"driver_name": "value_pressure", "method": "pearson", "r": 0.15, "p_value": 0.2}
-            ]
+        # Estrai parametri dall'input
+        df_csv = kwargs.get("df_csv", "")
+        kpi = kwargs.get("kpi", "value_speed")
+        mode = kwargs.get("mode", "correlation")
+        
+        logger.info(f"StatsAgent.compute_correlations called with kpi={kpi}, mode={mode}, df_csv_len={len(df_csv) if df_csv else 0}")
+        
+        # Ottieni lo strumento e eseguilo
+        from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
+        tool = CrossStatEngineTool()
+        
+        result = tool.run(df_csv=df_csv, kpi=kpi, mode=mode)
+        return json.loads(result) if isinstance(result, str) else result
 
     @with_context_io(
         input_keys={
@@ -166,6 +171,10 @@ class StatsAgent(cr.BaseAgent):
         }, 
         output_key="impact_ranking", 
         output_type="json"
+    )
+    @with_robust_error_handling(
+        stage_name="rank_impact",
+        store_error_key="impact_ranking"
     )
     def rank_impact(self, **kwargs):
         """
@@ -176,39 +185,28 @@ class StatsAgent(cr.BaseAgent):
         if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
             self.llm.task_name = "rank_impact"
             
-        try:
-            # Estrai parametri dall'input
-            df_csv = kwargs.get("df_csv", "")
-            kpi = kwargs.get("kpi", "value_speed")
-            correlation_matrix = kwargs.get("correlation_matrix", [])
-            
-            print(f"StatsAgent.rank_impact called with kpi={kpi}, matrix_len={len(correlation_matrix)}")
-            
-            # Ottieni lo strumento e eseguilo
-            from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
-            tool = CrossStatEngineTool()
-            
-            result = tool.run(df_csv=df_csv, kpi=kpi, mode="ranking")
-            return json.loads(result) if isinstance(result, str) else result
-        except Exception as e:
-            print(f"ERROR in rank_impact: {e}")
-            # In caso di errore, genera un ranking minimo
-            return {
-                "kpi_name": kpi,
-                "ranking": [
-                    {"driver_name": "value_speed", "r": 1.0, "p_value": 0.0, "score": 1.0, "strength": "Strong", 
-                    "explanation": "Strong positive relationship with statistical significance"},
-                    {"driver_name": "value_temperature", "r": 0.2, "p_value": 0.1, "score": 0.5, "strength": "Moderate", 
-                    "explanation": "Moderate positive relationship with moderate confidence"},
-                    {"driver_name": "value_pressure", "r": 0.15, "p_value": 0.2, "score": 0.3, "strength": "Weak", 
-                    "explanation": "Weak positive relationship with low confidence"}
-                ]
-            }
+        # Estrai parametri dall'input
+        df_csv = kwargs.get("df_csv", "")
+        kpi = kwargs.get("kpi", "value_speed")
+        correlation_matrix = kwargs.get("correlation_matrix", [])
+        
+        logger.info(f"StatsAgent.rank_impact called with kpi={kpi}, matrix_len={len(correlation_matrix)}")
+        
+        # Ottieni lo strumento e eseguilo
+        from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
+        tool = CrossStatEngineTool()
+        
+        result = tool.run(df_csv=df_csv, kpi=kpi, mode="ranking")
+        return json.loads(result) if isinstance(result, str) else result
 
     @with_context_io(
         input_keys={"df_csv": "unified_dataset"}, 
         output_key="outlier_report", 
         output_type="json"
+    )
+    @with_robust_error_handling(
+        stage_name="detect_outliers",
+        store_error_key="outlier_report"
     )
     def detect_outliers(self, **kwargs):
         """
@@ -219,29 +217,18 @@ class StatsAgent(cr.BaseAgent):
         if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
             self.llm.task_name = "detect_outliers"
             
-        try:
-            # Estrai parametri dall'input
-            df_csv = kwargs.get("df_csv", "")
-            kpi = kwargs.get("kpi", "value_speed")
-            
-            print(f"StatsAgent.detect_outliers called with kpi={kpi}, df_csv_len={len(df_csv) if df_csv else 0}")
-            
-            # Ottieni lo strumento e eseguilo
-            from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
-            tool = CrossStatEngineTool()
-            
-            result = tool.run(df_csv=df_csv, kpi=kpi, mode="outliers")
-            return json.loads(result) if isinstance(result, str) else result
-        except Exception as e:
-            print(f"ERROR in detect_outliers: {e}")
-            # In caso di errore, genera un report outlier minimo
-            return {
-                "kpi": kpi, 
-                "outliers": [
-                    {"row": 55, "driver": "value_speed"},
-                    {"row": 24, "driver": "value_temperature"}
-                ]
-            }
+        # Estrai parametri dall'input
+        df_csv = kwargs.get("df_csv", "")
+        kpi = kwargs.get("kpi", "value_speed")
+        
+        logger.info(f"StatsAgent.detect_outliers called with kpi={kpi}, df_csv_len={len(df_csv) if df_csv else 0}")
+        
+        # Ottieni lo strumento e eseguilo
+        from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
+        tool = CrossStatEngineTool()
+        
+        result = tool.run(df_csv=df_csv, kpi=kpi, mode="outliers")
+        return json.loads(result) if isinstance(result, str) else result
 
     # ------------------------------------------------------------------
     # Friendly repr for debugging

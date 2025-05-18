@@ -27,9 +27,8 @@ DATA_STAGE_TASKS: List[str] = [
 ]
 
 STATS_STAGE_TASKS: List[str] = [
-    "compute_correlations",
-    "rank_impact",
-    "detect_outliers",
+    ["compute_correlations", "detect_outliers"],  # Esecuzione parallela
+    "rank_impact",  # Dipende da compute_correlations, quindi rimane sequenziale
 ]
 
 EXPLAIN_STAGE_TASKS: List[str] = [

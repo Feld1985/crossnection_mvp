@@ -22,6 +22,45 @@ from crossnection_mvp.utils.context_store import ContextStore
 
 logger = logging.getLogger(__name__)
 
+# Costanti per nomi di chiavi standard
+ERROR_STATE_KEY = "error_state"
+ERROR_MESSAGE_KEY = "error_message"
+USER_MESSAGE_KEY = "user_message"
+
+
+def safe_json_loads(json_string: str, default_value: Any = None) -> Any:
+    """
+    Carica in modo sicuro una stringa JSON, restituendo un valore di default in caso di errore.
+    """
+    if not json_string:
+        return default_value
+        
+    try:
+        return json.loads(json_string)
+    except json.JSONDecodeError:
+        logger.warning(f"Failed to parse JSON: {json_string[:100]}...")
+        return default_value
+
+
+def handle_error_result(result: Dict[str, Any]) -> bool:
+    """
+    Controlla se un risultato contiene un errore e lo gestisce appropriatamente.
+    """
+    if not isinstance(result, dict):
+        return False
+        
+    if not result.get(ERROR_STATE_KEY, False):
+        return False
+        
+    # Log dell'errore
+    error_message = result.get(ERROR_MESSAGE_KEY, "Unknown error")
+    user_message = result.get(USER_MESSAGE_KEY, "Si è verificato un errore")
+    
+    logger.error(f"Error detected: {error_message}")
+    logger.info(f"User message: {user_message}")
+    
+    return True
+
 
 class ExplainAgent(cr.BaseAgent):
     """Agent that builds and validates root‑cause narratives."""
@@ -47,23 +86,34 @@ class ExplainAgent(cr.BaseAgent):
         Generate the draft narrative of root causes, combining impact ranking
         and outlier report. This output is intended for business‑sense validation.
         """
-        # Imposta il task_name nel TokenCounterLLM se presente
-        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
-            self.llm.task_name = "draft_root_cause_narrative"
-            
         try:
+            # Imposta il task_name nel TokenCounterLLM se presente
+            if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+                self.llm.task_name = "draft_root_cause_narrative"
+                
+            # Controlla se input contiene errori
+            if isinstance(impact_ranking, dict) and impact_ranking.get(ERROR_STATE_KEY, False):
+                logger.warning("Impact ranking contains error state, passing through")
+                return {
+                    "markdown": f"# ⚠️ Errore nell'analisi di impatto\n\n{impact_ranking.get(USER_MESSAGE_KEY, 'Si è verificato un errore durante l\'analisi di impatto.')}",
+                    ERROR_STATE_KEY: True,
+                    "error_source": "impact_ranking"
+                }
+                
+            if isinstance(outlier_report, dict) and outlier_report.get(ERROR_STATE_KEY, False):
+                logger.warning("Outlier report contains error state, passing through")
+                return {
+                    "markdown": f"# ⚠️ Errore nell'analisi degli outlier\n\n{outlier_report.get(USER_MESSAGE_KEY, 'Si è verificato un errore durante la rilevazione degli outlier.')}",
+                    ERROR_STATE_KEY: True,
+                    "error_source": "outlier_report"
+                }
+                
             # Assicurati che impact_ranking e outlier_report siano dizionari
             if isinstance(impact_ranking, str):
-                try:
-                    impact_ranking = json.loads(impact_ranking)
-                except:
-                    logger.warning(f"Could not parse impact_ranking as JSON: {impact_ranking[:100]}...")
+                impact_ranking = safe_json_loads(impact_ranking, {})
             
             if isinstance(outlier_report, str):
-                try:
-                    outlier_report = json.loads(outlier_report)
-                except:
-                    logger.warning(f"Could not parse outlier_report as JSON: {outlier_report[:100]}...")
+                outlier_report = safe_json_loads(outlier_report, {})
             
             result = self._formatter.run(
                 impact_ranking=impact_ranking,
@@ -79,23 +129,12 @@ class ExplainAgent(cr.BaseAgent):
                     return {"markdown": result}
             return result
         except Exception as e:
-            logger.error("Error generating draft narrative: %s", e, exc_info=True)
-            # Fornisci un fallback in caso di errore
+            logger.error(f"Error in draft_root_cause_narrative: {e}", exc_info=True)
             return {
-                "markdown": f"""
-# 📊 Error in Draft Root-Cause Narrative
-
-An error occurred while generating the narrative: {str(e)}
-
-## Validation Instructions
-
-Please review the input data and ensure:
-- The KPI is correctly specified
-- There is sufficient driver data to analyze
-- The data format is correct
-
-*You can provide feedback on this error to help improve the process.*
-                """
+                "markdown": f"# ⚠️ Errore nella generazione della bozza\n\nSi è verificato un errore durante la generazione della bozza: {str(e)}",
+                ERROR_STATE_KEY: True,
+                ERROR_MESSAGE_KEY: str(e),
+                USER_MESSAGE_KEY: "Non è stato possibile generare la bozza del report. Verifica che i dati di input siano nel formato corretto."
             }
 
     @with_context_io(
@@ -111,23 +150,56 @@ Please review the input data and ensure:
         """
         Produce the final root‑cause report after merging user feedback.
         """
-        # Imposta il task_name nel TokenCounterLLM se presente
-        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
-            self.llm.task_name = "finalize_root_cause_report"
-            
         try:
+            # Imposta il task_name nel TokenCounterLLM se presente
+            if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+                self.llm.task_name = "finalize_root_cause_report"
+                
+            # Controlla se narrative_draft contiene errori
+            if isinstance(narrative_draft, dict) and narrative_draft.get(ERROR_STATE_KEY, False):
+                logger.warning("Narrative draft contains error state, passing through")
+                error_md = narrative_draft.get("markdown", "# ⚠️ Errore nella generazione della bozza\n\nNon è stato possibile generare la bozza del report.")
+                # Aggiungi sezione feedback se presente
+                if feedback:
+                    error_md += f"\n\n## Feedback dell'utente\n\n{feedback}"
+                return {
+                    "markdown": error_md,
+                    ERROR_STATE_KEY: True,
+                    "error_source": "narrative_draft"
+                }
+                
             # Recupera impact_ranking e outlier_report dal Context Store
             store = ContextStore.get_instance()
-            impact_ranking = store.load_json("impact_ranking")
-            outlier_report = store.load_json("outlier_report")
+            try:
+                impact_ranking = store.load_json("impact_ranking")
+                outlier_report = store.load_json("outlier_report")
+                
+                # Controlla errori nei dati recuperati
+                if handle_error_result(impact_ranking) or handle_error_result(outlier_report):
+                    error_md = "# ⚠️ Errore nella finalizzazione del report\n\nI dati necessari contengono errori che impediscono la finalizzazione del report."
+                    # Aggiungi sezione feedback se presente
+                    if feedback:
+                        error_md += f"\n\n## Feedback dell'utente\n\n{feedback}"
+                    return {
+                        "markdown": error_md,
+                        ERROR_STATE_KEY: True,
+                        "error_source": "data_sources"
+                    }
+            except Exception as e:
+                logger.error(f"Failed to load data from Context Store: {e}")
+                error_md = "# ⚠️ Errore nel caricamento dei dati\n\nNon è stato possibile caricare i dati necessari per il report."
+                # Aggiungi sezione feedback se presente
+                if feedback:
+                    error_md += f"\n\n## Feedback dell'utente\n\n{feedback}"
+                return {
+                    "markdown": error_md,
+                    ERROR_STATE_KEY: True,
+                    "error_source": "context_store"
+                }
             
             # Se narrative_draft è una stringa, parsa il JSON
             if isinstance(narrative_draft, str):
-                try:
-                    narrative_draft = json.loads(narrative_draft)
-                except:
-                    logger.warning(f"Could not parse narrative_draft as JSON: {narrative_draft[:100]}...")
-                    narrative_draft = {"markdown": narrative_draft}
+                narrative_draft = safe_json_loads(narrative_draft, {"markdown": narrative_draft})
             
             result = self._formatter.run(
                 impact_ranking=impact_ranking,
@@ -144,17 +216,16 @@ Please review the input data and ensure:
                     return {"markdown": result}
             return result
         except Exception as e:
-            logger.error("Error generating final narrative: %s", e, exc_info=True)
-            # Fornisci un fallback in caso di errore
+            logger.error(f"Error in finalize_root_cause_report: {e}", exc_info=True)
+            error_md = f"# ⚠️ Errore nella finalizzazione del report\n\nSi è verificato un errore durante la finalizzazione del report: {str(e)}"
+            # Aggiungi sezione feedback se presente
+            if feedback:
+                error_md += f"\n\n## Feedback dell'utente\n\n{feedback}"
             return {
-                "markdown": f"""
-# 📘 Error in Final Root-Cause Report
-
-An error occurred while generating the final report: {str(e)}
-
-The draft narrative was provided, but there was an issue incorporating the feedback. 
-Please try again or contact support for assistance.
-                """
+                "markdown": error_md,
+                ERROR_STATE_KEY: True,
+                ERROR_MESSAGE_KEY: str(e),
+                USER_MESSAGE_KEY: "Non è stato possibile finalizzare il report. Verifica che i dati di input siano nel formato corretto."
             }
 
     def __repr__(self) -> str:

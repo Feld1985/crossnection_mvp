@@ -332,37 +332,72 @@ Please review the input data and ensure:
     # Internal renderers
     # ------------------------------------------------------------------#
 
-    def _draft_markdown(
-        self,
-        impact_ranking: Dict[str, Any],
-        outlier_report: Dict[str, Any],
-        *,
-        k_top: int,
-    ) -> str:
-        """Render first draft to be validated by user."""
-        # Extract KPI name from various possible structures
-        kpi_name = "KPI"
-        if isinstance(impact_ranking, dict):
-            if "kpi_name" in impact_ranking:
-                kpi_name = impact_ranking["kpi_name"]
+def _draft_markdown(
+    self,
+    impact_ranking: Dict[str, Any],
+    outlier_report: Dict[str, Any],
+    *,
+    k_top: int,
+) -> str:
+    """Render first draft to be validated by user."""
+    # Verifica se ci sono stati di errore
+    error_state = False
+    error_messages = []
+    
+    if isinstance(impact_ranking, dict) and impact_ranking.get("error_state", False):
+        error_state = True
+        error_messages.append(impact_ranking.get("user_message", "Errore nell'analisi di impatto"))
+    
+    if isinstance(outlier_report, dict) and outlier_report.get("error_state", False):
+        error_state = True
+        error_messages.append(outlier_report.get("user_message", "Errore nell'analisi degli outlier"))
+    
+    # Se ci sono errori, genera un report che li segnala
+    if error_state:
+        # Preparare la lista degli errori prima della f-string
+        error_list = "- " + "\n- ".join(error_messages)
         
-        # Get top drivers using the robust helper function
-        top = _top_drivers(impact_ranking, k=k_top)
-                
-        context = {
-            "top_drivers": top,
-            "kpi": kpi_name,
-            "outlier_summary": _outlier_summary(outlier_report.get("outliers", [])),
-            "validation_instructions": """
-            Please review each driver and mark them as follows:
-            - RELEVANT: Business-critical correlation worth investigating
-            - OBVIOUS: Expected relationship, not a surprise
-            - IRRELEVANT: Statistical noise or spurious correlation
+        return f"""
+# 📊 Draft Root-Cause Narrative
+
+## Attenzione: Problemi rilevati
+
+Sono stati riscontrati alcuni problemi durante l'analisi:
+
+{error_list}
+
+## Suggerimenti per risolvere
+
+- Verifica che i file CSV contengano dati validi e nel formato corretto
+- Controlla che il KPI selezionato sia presente nei dati
+- Assicurati che ci siano sufficienti dati numerici per l'analisi statistica
+
+*Puoi procedere con una revisione parziale dei risultati disponibili o caricare nuovi dati per riprovare l'analisi.*
+        """
+    
+    # Extract KPI name from various possible structures
+    kpi_name = "KPI"
+    if isinstance(impact_ranking, dict):
+        if "kpi_name" in impact_ranking:
+            kpi_name = impact_ranking["kpi_name"]
+    
+    # Get top drivers using the robust helper function
+    top = _top_drivers(impact_ranking, k=k_top)
             
-            Add comments for any specific insights or context.
-            """
-        }
-        return _DRAFT_TEMPLATE.render(**context)
+    context = {
+        "top_drivers": top,
+        "kpi": kpi_name,
+        "outlier_summary": _outlier_summary(outlier_report.get("outliers", [])),
+        "validation_instructions": """
+        Please review each driver and mark them as follows:
+        - RELEVANT: Business-critical correlation worth investigating
+        - OBVIOUS: Expected relationship, not a surprise
+        - IRRELEVANT: Statistical noise or spurious correlation
+        
+        Add comments for any specific insights or context.
+        """
+    }
+    return _DRAFT_TEMPLATE.render(**context)
 
     def _final_markdown(
         self,

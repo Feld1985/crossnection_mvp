@@ -181,6 +181,11 @@ class CrossnectionMvpCrew:
 
     def run(self, inputs: Dict[str, Any]) -> Any:
         """Esegue la crew sul dataset/input fornito dall'utente."""
+        # Configura il logging
+        from crossnection_mvp.utils.logging_config import configure_logging
+        logger = configure_logging()
+        logger.info("Avvio Crossnection con input: %s", str(inputs))
+        
         # Aggiunge la session_id agli input
         inputs["context_session_id"] = self._store.session_id
         

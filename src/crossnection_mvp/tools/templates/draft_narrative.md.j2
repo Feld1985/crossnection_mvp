@@ -2,6 +2,7 @@
 
 # 📊 Draft Root-Cause Narrative for {{ kpi }}
 
+{% if success is defined and success %}
 ## Top-{{ top_drivers|length }} Influencing Drivers
 
 | Rank | Driver | Description | Effect Size | p-value | Strength | Explanation |
@@ -13,6 +14,21 @@
 ## Outlier Check
 
 {{ outlier_summary }}
+
+## Nota sull'interpretazione statistica
+
+I risultati presentati mostrano **correlazioni**, non necessariamente **causalità**. Un valore di effect size alto indica una forte relazione tra driver e KPI, mentre un p-value basso (<0.05) indica che tale relazione è statisticamente significativa.
+
+{% else %}
+## Attenzione: Analisi incompleta
+
+L'analisi non è stata completata correttamente. Questo potrebbe essere dovuto a:
+- Dati insufficienti o non validi
+- Problemi di formato nei file caricati
+- KPI non trovato o non valido
+
+Si consiglia di rivedere i dataset e riprovare l'analisi.
+{% endif %}
 
 ## Validation Instructions
 

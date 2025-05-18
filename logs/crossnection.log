@@ -1,0 +1,213 @@
+2025-05-18 17:33:19 | INFO     | root:187 | Avvio Crossnection con input: {'kpi': 'Test Run', 'process_map_file': 'examples\\process_map.json', 'csv_folder': 'examples\\driver_csvs'}
+2025-05-18 17:33:32 | ERROR    | crossnection_mvp.main:86 | Error in main_run (run): 
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 122, in run
+    result = CREW.run(inputs)
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 222, in run
+    result = self.crew().kickoff(inputs=inputs)
+             ^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 160, in crew
+    tasks = self._build_tasks()
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 130, in _build_tasks
+    agents = self._build_agents()
+             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 60, in _build_agents
+    tools_instances = self._create_tools()
+                      ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 43, in _create_tools
+    from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\__init__.py", line 6, in <module>
+    from .cross_insight_formatter import CrossInsightFormatterTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\cross_insight_formatter.py", line 373
+    """
+       ^
+SyntaxError: f-string expression part cannot include a backslash
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\utils\error_handling.py", line 81, in wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 130, in run
+    raise typer.Exit(code=1) from exc
+click.exceptions.Exit
+2025-05-18 17:38:32 | INFO     | root:187 | Avvio Crossnection con input: {'kpi': 'Test Run', 'process_map_file': 'examples\\process_map.json', 'csv_folder': 'examples\\driver_csvs'}
+2025-05-18 17:38:35 | ERROR    | crossnection_mvp.main:86 | Error in main_run (run): 
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 122, in run
+    result = CREW.run(inputs)
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 222, in run
+    result = self.crew().kickoff(inputs=inputs)
+             ^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 160, in crew
+    tasks = self._build_tasks()
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 130, in _build_tasks
+    agents = self._build_agents()
+             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 60, in _build_agents
+    tools_instances = self._create_tools()
+                      ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 43, in _create_tools
+    from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\__init__.py", line 6, in <module>
+    from .cross_insight_formatter import CrossInsightFormatterTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\cross_insight_formatter.py", line 373
+    """
+       ^
+SyntaxError: f-string expression part cannot include a backslash
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\utils\error_handling.py", line 81, in wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 130, in run
+    raise typer.Exit(code=1) from exc
+click.exceptions.Exit
+2025-05-18 17:43:04 | INFO     | root:187 | Avvio Crossnection con input: {'kpi': 'Test Run', 'process_map_file': 'examples\\process_map.json', 'csv_folder': 'examples\\driver_csvs'}
+2025-05-18 17:43:08 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:43:12 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:43:12 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:43:12 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:43:12 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:43:12 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:43:12 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:44:07 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:44:07 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:44:07 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:07 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:07 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:07 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:44:14 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:44:14 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:44:14 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:14 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:14 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:14 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:44:18 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:44:18 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:44:18 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:18 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:18 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:44:18 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:16 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:16 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:16 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:16 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:16 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:16 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:37 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:37 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:37 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:37 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:37 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:37 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:40 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:40 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:40 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:40 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:40 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:40 | INFO     | crossnection_mvp.tools.cross_stat_engine:236 | CrossStatEngineTool received input: {'description': 'Compute pairwise statistical correlations between value_pressure, value_speed, valu...
+2025-05-18 17:45:40 | INFO     | crossnection_mvp.tools.cross_stat_engine:248 | Successfully loaded unified dataset from Context Store
+2025-05-18 17:45:40 | INFO     | crossnection_mvp.tools.cross_stat_engine:352 | Using input dict directly
+2025-05-18 17:45:40 | INFO     | crossnection_mvp.tools.cross_stat_engine:439 | Using parameters: kpi=value_speed, mode=correlation, dataset shape=(100, 5)
+2025-05-18 17:45:40 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:42 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:42 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:42 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:42 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:42 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:43 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:45 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:45 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:45 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:45 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:45 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:45 | INFO     | crossnection_mvp.tools.cross_stat_engine:236 | CrossStatEngineTool received input: {'description': 'Perform correlation analysis on drivers value_pressure, value_speed, and value_temp...
+2025-05-18 17:45:45 | INFO     | crossnection_mvp.tools.cross_stat_engine:248 | Successfully loaded unified dataset from Context Store
+2025-05-18 17:45:45 | INFO     | crossnection_mvp.tools.cross_stat_engine:352 | Using input dict directly
+2025-05-18 17:45:45 | INFO     | crossnection_mvp.tools.cross_stat_engine:439 | Using parameters: kpi=value_speed, mode=correlation, dataset shape=(100, 5)
+2025-05-18 17:45:45 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:48 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:48 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:48 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:48 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:48 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:49 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:50 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:50 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:50 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:50 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:50 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:50 | INFO     | crossnection_mvp.tools.cross_stat_engine:236 | CrossStatEngineTool received input: {'description': 'Identify outliers in the driver datasets', 'type': 'string'}...
+2025-05-18 17:45:51 | INFO     | crossnection_mvp.tools.cross_stat_engine:248 | Successfully loaded unified dataset from Context Store
+2025-05-18 17:45:51 | INFO     | crossnection_mvp.tools.cross_stat_engine:352 | Using input dict directly
+2025-05-18 17:45:51 | INFO     | crossnection_mvp.tools.cross_stat_engine:439 | Using parameters: kpi=value_speed, mode=correlation, dataset shape=(100, 5)
+2025-05-18 17:45:51 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:45:55 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:45:55 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:45:55 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:55 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:55 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:45:55 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:46:11 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:46:11 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:46:11 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:11 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:11 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:11 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:46:23 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:46:23 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:46:23 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:23 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:23 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:23 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:46:34 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:46:34 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:46:34 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:34 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:34 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:34 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:46:50 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:46:50 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:46:50 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:50 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:50 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:46:50 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:47:01 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:47:01 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:47:01 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:47:01 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:47:01 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:47:01 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai
+2025-05-18 17:47:15 | INFO     | httpx:1025 | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-18 17:47:15 | INFO     | LiteLLM:1185 | Wrapper: Completed Call, calling success_handler
+2025-05-18 17:47:15 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:47:15 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:47:15 | INFO     | LiteLLM:655 | selected model name for cost calculation: openai/gpt-4o-mini-2024-07-18
+2025-05-18 17:47:15 | INFO     | LiteLLM:2827 | 
+LiteLLM completion() model= gpt-4o-mini; provider = openai

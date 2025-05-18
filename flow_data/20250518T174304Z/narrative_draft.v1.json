@@ -1,0 +1,4 @@
+{
+  "markdown": "\n# 📊 Error in Root-Cause Narrative\n\nAn error occurred while generating the narrative: 'CrossInsightFormatterTool' object has no attribute '_draft_markdown'\n\n## Validation Instructions\n\nPlease review the input data and ensure:\n- The KPI is correctly specified\n- There is sufficient driver data to analyze\n- The data format is correct\n\n*You can provide feedback on this error to help improve the process.*\n",
+  "error": "'CrossInsightFormatterTool' object has no attribute '_draft_markdown'"
+}

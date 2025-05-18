@@ -1,0 +1,70 @@
+2025-05-18 17:33:32 | ERROR    | crossnection_mvp.main:86 | Error in main_run (run): 
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 122, in run
+    result = CREW.run(inputs)
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 222, in run
+    result = self.crew().kickoff(inputs=inputs)
+             ^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 160, in crew
+    tasks = self._build_tasks()
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 130, in _build_tasks
+    agents = self._build_agents()
+             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 60, in _build_agents
+    tools_instances = self._create_tools()
+                      ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 43, in _create_tools
+    from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\__init__.py", line 6, in <module>
+    from .cross_insight_formatter import CrossInsightFormatterTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\cross_insight_formatter.py", line 373
+    """
+       ^
+SyntaxError: f-string expression part cannot include a backslash
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\utils\error_handling.py", line 81, in wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 130, in run
+    raise typer.Exit(code=1) from exc
+click.exceptions.Exit
+2025-05-18 17:38:35 | ERROR    | crossnection_mvp.main:86 | Error in main_run (run): 
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 122, in run
+    result = CREW.run(inputs)
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 222, in run
+    result = self.crew().kickoff(inputs=inputs)
+             ^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 160, in crew
+    tasks = self._build_tasks()
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 130, in _build_tasks
+    agents = self._build_agents()
+             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 60, in _build_agents
+    tools_instances = self._create_tools()
+                      ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\crew.py", line 43, in _create_tools
+    from crossnection_mvp.tools.cross_data_profiler import CrossDataProfilerTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\__init__.py", line 6, in <module>
+    from .cross_insight_formatter import CrossInsightFormatterTool
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\tools\cross_insight_formatter.py", line 373
+    """
+       ^
+SyntaxError: f-string expression part cannot include a backslash
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\utils\error_handling.py", line 81, in wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\marco\Projects\crossnection_mvp\src\crossnection_mvp\main.py", line 130, in run
+    raise typer.Exit(code=1) from exc
+click.exceptions.Exit

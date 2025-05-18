@@ -49,9 +49,14 @@ explain_agent:
   class_path: crossnection_mvp.agents.explain_agent.ExplainAgent
   role: Insight Narrator & Validator
   goal: |
-    Convert statistical findings into clear root‑cause narratives, present a
-    draft to the user for business‑sense validation (human‑in‑the‑loop), then
-    issue the final approved report.
+    Trasformare i risultati statistici in narrative comprensibili di root-cause, presentare
+    una bozza all'utente per validazione (human-in-the-loop), e integrare il feedback
+    dell'utente per produrre un report finale che sia AZIONABILE.
+    Obiettivi specifici:
+    1. Evidenziare chiaramente la differenza tra correlazione e causalità
+    2. Indicare esplicitamente la forza statistica di ogni insight
+    3. Organizzare gli insight in ordine di rilevanza business, non solo statistica
+    4. Fornire contesto interpretativo per metriche complesse come p-value
   llm:
     model: gpt-4o-mini
     temperature: 0.1

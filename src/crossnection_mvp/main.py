@@ -21,7 +21,7 @@ Usage examples:
 The CLI is also invocable via:
     python -m crossnection_mvp.main run --kpi "..." --process-map ...
 """
-
+from crossnection_mvp.utils.error_handling import with_robust_error_handling
 # Importa e configura il logger OpenAI (aggiungi questa parte)
 try:
     import openai
@@ -92,6 +92,11 @@ CREW = CrossnectionMvpCrew()
 # ---------------------------------------------------------------------------
 
 @app.command()
+@with_robust_error_handling(
+    return_fallback=False,  # Rilancia l'eccezione per mostrare l'errore all'utente
+    log_level="ERROR",
+    stage_name="main_run"
+)
 def run(
     kpi: str = typer.Option(..., help="Target KPI to analyse (e.g., FPY)"),
     process_map: Path = typer.Option(
