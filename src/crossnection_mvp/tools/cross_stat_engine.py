@@ -229,10 +229,17 @@ class CrossStatEngineTool(BaseTool):
     description: str = "Statistical engine: correlations, impact ranking, outlier detection."
     args_schema = CrossStatEngineToolSchema
 
-    def _run(self, input: Union[str, Dict[str, Any]]) -> str:
+    def _run(self, input: Union[str, Dict[str, Any]] = None, **kwargs) -> str:
         """
-        Main entry point required by BaseTool, handling both dict and string inputs.
+        Main entry point required by BaseTool
+                    
+        Adattato per accettare parametri sia direttamente che nel formato {"input": ...}
         """
+        # Gestisci il caso in cui l'input arriva come kwargs invece che sotto la chiave 'input'
+        if input is None and kwargs:
+            # Adatta la struttura per renderla compatibile
+            input = kwargs
+        
         logger.info(f"CrossStatEngineTool received input: {str(input)[:100]}...")
         
         # Converti l'input in un formato che possiamo usare

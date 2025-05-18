@@ -11,8 +11,8 @@ Design notes
 ~~~~~~~~~~~~
 * Built on **pandas** for ETL and **great_expectations** for validation.
 * Returns two artefacts as a dict:  
-    - `unified_dataset_csv` (string in CSV format)  
-    - `data_report_json` (JSON string)
+    - `unified_dataset_ref` (reference to dataset in Context Store)  
+    - `data_report_ref` (reference to JSON report in Context Store)
 * CrewAI automatically serialises / deserialises when passed
   between tasks (falls back to CSV in Flow context if needed).
 """
@@ -79,10 +79,17 @@ class CrossDataProfilerTool(BaseTool):
             # Rilevamento contenuto CSV diretto
             if input.startswith("join_key,timestamp,value") or input.startswith('"join_key,timestamp,value'):
                 print(f"DEBUG: Detected direct CSV content instead of folder path")
-                # Per i contenuti CSV diretti, restituisci direttamente i dati
+                # Per i contenuti CSV diretti, salva nel Context Store e restituisci il riferimento
+                store = ContextStore.get_instance()
+                from io import StringIO
+                df = pd.read_csv(StringIO(input.replace('"', '')))
+                unified_path = store.save_dataframe("unified_dataset", df)
+                report = {"tables": [], "note": "Direct CSV input used"}
+                report_path = store.save_json("data_report", report)
+                
                 return json.dumps({
-                    "unified_dataset_csv": input.replace('"', ''),
-                    "data_report_json": json.dumps({"tables": [], "note": "Direct CSV input used"})
+                    "unified_dataset_ref": unified_path,
+                    "data_report_ref": report_path
                 }, ensure_ascii=False)
             
             try:
@@ -136,10 +143,8 @@ class CrossDataProfilerTool(BaseTool):
         -------
         dict
             {
-              "unified_dataset_csv": str,
-              "data_report_json": str,
-              "unified_dataset_ref": str,  # Nuovo: riferimento al Context Store
-              "data_report_ref": str       # Nuovo: riferimento al Context Store
+              "unified_dataset_ref": str,  # Riferimento al Context Store
+              "data_report_ref": str       # Riferimento al Context Store
             }
         """
         # QUICK FIX - Fix per il problema del percorso
@@ -158,8 +163,6 @@ class CrossDataProfilerTool(BaseTool):
             report_path = store.save_json("data_report", report)
             
             return {
-                "unified_dataset_csv": csv_folder.replace('"', ''),
-                "data_report_json": json.dumps(report),
                 "unified_dataset_ref": unified_path,
                 "data_report_ref": report_path
             }
@@ -226,10 +229,8 @@ class CrossDataProfilerTool(BaseTool):
         dataset_summary = f"Unified dataset saved. Shape: {rows} rows x {cols} columns. Columns: {column_summary}"
         print(f"DEBUG: {dataset_summary}")
 
-        # Return artifacts con riferimenti al Context Store
+        # Return solo i riferimenti al Context Store
         return {
-            "unified_dataset_csv": unified_csv,
-            "data_report_json": json.dumps(profile, ensure_ascii=False, indent=2),
             "unified_dataset_ref": unified_path,
             "data_report_ref": report_path
         }
