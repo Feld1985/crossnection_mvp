@@ -1,0 +1,8 @@
+{
+  "error_state": true,
+  "error_message": "KPI 'value_speed' non trovato e nessuna colonna numerica valida disponibile",
+  "user_message": "Non è stato possibile trovare il KPI specificato 'value_speed'. Assicurati che il file CSV contenga una colonna con questo nome o una colonna che inizi con 'value_'.",
+  "columns": [
+    "20250519T195452Z\\unified_dataset.v1.csv"
+  ]
+}

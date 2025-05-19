@@ -10,6 +10,7 @@ import crewai as cr
 from crewai.tools import BaseTool
 from crossnection_mvp.utils.token_counter import TokenCounterLLM
 from crossnection_mvp.utils.context_store import ContextStore
+from crossnection_mvp.utils.debug_helpers import dump_context_state
 
 # ----------------------------------------------------------------------------
 # Percorsi di configurazione
@@ -189,6 +190,12 @@ class CrossnectionMvpCrew:
         # Aggiunge la session_id agli input
         inputs["context_session_id"] = self._store.session_id
         
+        # Debug initialize
+        try:
+            dump_context_state("context_before_run.json")
+        except Exception as e:
+            logger.warning(f"Failed to dump initial context state: {e}")
+        
         # Debugging e validazione input
         print(f"Input parameters received: {inputs}")
         
@@ -253,6 +260,11 @@ class CrossnectionMvpCrew:
                 logger.print_summary()
             except Exception as e:
                 print(f"[WARNING] Failed to print OpenAI usage summary: {e}")
+                
+            try:
+                dump_context_state("context_after_run.json")
+            except Exception as e:
+                logger.warning(f"Failed to dump final context state: {e}")
             
             return result
 

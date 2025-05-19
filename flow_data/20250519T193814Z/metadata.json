@@ -1,0 +1,49 @@
+{
+  "session_id": "20250519T193814Z",
+  "created_at": "2025-05-19T19:38:14.065370",
+  "artifacts": {
+    "unified_dataset": {
+      "type": "dataframe",
+      "path": "20250519T193814Z\\unified_dataset.v7.csv",
+      "created_at": "2025-05-19T19:38:41.327414",
+      "version": 7,
+      "shape": [
+        0,
+        1
+      ],
+      "columns": [
+        "20250519T193814Z\\unified_dataset.v1.csv"
+      ]
+    },
+    "data_report": {
+      "type": "json",
+      "path": "20250519T193814Z\\data_report.v3.json",
+      "created_at": "2025-05-19T19:38:27.301069",
+      "version": 3
+    },
+    "correlation_matrix": {
+      "type": "json",
+      "path": "20250519T193814Z\\correlation_matrix.v4.json",
+      "created_at": "2025-05-19T19:38:35.282508",
+      "version": 4
+    },
+    "outlier_report": {
+      "type": "json",
+      "path": "20250519T193814Z\\outlier_report.v2.json",
+      "created_at": "2025-05-19T19:38:41.330983",
+      "version": 2
+    },
+    "narrative_draft": {
+      "type": "json",
+      "path": "20250519T193814Z\\narrative_draft.v1.json",
+      "created_at": "2025-05-19T19:39:06.837385",
+      "version": 1
+    },
+    "root_cause_report": {
+      "type": "json",
+      "path": "20250519T193814Z\\root_cause_report.v1.json",
+      "created_at": "2025-05-19T19:51:16.282301",
+      "version": 1
+    }
+  }
+}

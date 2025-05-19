@@ -176,3 +176,50 @@ class ContextStore:
             base_name = base_name.split('.')[0]
             
         return base_name
+    
+def validate_json_structure(self, name: str, expected_keys: List[str]) -> bool:
+    """Validate that a saved JSON has the expected structure."""
+    try:
+        data = self.load_json(name)
+        return all(key in data for key in expected_keys)
+    except Exception:
+        return False
+
+def get_normalized_impact_ranking(self) -> Dict[str, Any]:
+    """Get a normalized impact ranking with guaranteed structure."""
+    try:
+        data = self.load_json("impact_ranking")
+        if not isinstance(data, dict):
+            return {"kpi_name": "Default KPI", "ranking": []}
+        if "ranking" not in data:
+            data["ranking"] = []
+        if "kpi_name" not in data:
+            data["kpi_name"] = "Default KPI"
+        return data
+    except Exception:
+        return {"kpi_name": "Default KPI", "ranking": []}
+        
+def get_normalized_outlier_report(self) -> Dict[str, Any]:
+    """Get a normalized outlier report with guaranteed structure."""
+    try:
+        data = self.load_json("outlier_report")
+        if not isinstance(data, dict):
+            return {"outliers": []}
+            
+        if "outliers" not in data:
+            data["outliers"] = []
+        return data
+    except Exception:
+        return {"outliers": []}
+        
+def ensure_artifact_exists(self, name: str, default_value: Any) -> bool:
+    """Ensure that an artifact exists, creating it if needed."""
+    try:
+        self.load_json(name)
+        return True
+    except Exception:
+        if isinstance(default_value, pd.DataFrame):
+            self.save_dataframe(name, default_value)
+        else:
+            self.save_json(name, default_value)
+        return False

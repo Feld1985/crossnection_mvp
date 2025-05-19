@@ -182,6 +182,7 @@ def impact_ranking(corr_df: pd.DataFrame, top_k: int | None = None) -> List[Dict
 # ---------------------------------------------------------------------------#
 
 
+# Trova la funzione outlier_report e modifica per garantire formato standard
 def outlier_report(df: pd.DataFrame, *, kpi: str) -> Dict[str, Any]:
     """Return list of outlier points per driver (index, driver, method)."""
     outliers = []
@@ -202,8 +203,14 @@ def outlier_report(df: pd.DataFrame, *, kpi: str) -> Dict[str, Any]:
         except Exception as e:
             logger.error(f"Error detecting outliers for {col}: {e}")
             continue
-            
-    return {"kpi": kpi, "outliers": outliers}
+    
+    # Assicurati di avere una struttura standard
+    return {
+        "kpi": kpi, 
+        "outliers": outliers,
+        "success": True,
+        "summary": f"Found {len(outliers)} outliers across {len(set(o['driver'] for o in outliers))} drivers"
+    }
 
 
 # ---------------------------------------------------------------------------#
@@ -405,6 +412,16 @@ class CrossStatEngineTool(BaseTool):
                         store.save_dataframe("unified_dataset", unified_dataset)
                 except Exception as e:
                     logger.error(f"Error parsing df_csv: {e}")
+                    
+        # Gestione per casi speciali di input non standard
+        if isinstance(input_data, dict) and 'description' in input_data and 'type' in input_data:
+        # Rileva tentativi di rilevamento outlier con formato non standard
+            if input_data.get('type') in ['outlier detection', 'outliers']:
+                logger.info("Detected non-standard outlier detection request, converting to standard format")
+                mode = "outliers"
+                # Usa kpi di default se non specificato
+                if 'kpi' not in input_data:
+                    kpi = "value_speed"  # o recupera dal context store
         
         # Assicurati che il KPI esista nel dataset
         kpi_ok = True
@@ -672,8 +689,16 @@ class CrossStatEngineTool(BaseTool):
         if mode == "outliers":
             try:
                 report = outlier_report(df, kpi=kpi)
-                # Aggiungi flag di successo
+                # Assicurati che la struttura sia sempre corretta
+                if "outliers" not in report:
+                    report["outliers"] = []
+                if "kpi" not in report:
+                    report["kpi"] = kpi
                 report["success"] = True
+                report["summary"] = f"Found {len(report['outliers'])} outliers across {len(set(o.get('driver', '') for o in report['outliers']))} drivers"
+                if "success" not in report:
+                    report["success"] = True
+                    
                 result = json.dumps(report, ensure_ascii=False, indent=2)
                 # Salva nel Context Store
                 store = ContextStore.get_instance()

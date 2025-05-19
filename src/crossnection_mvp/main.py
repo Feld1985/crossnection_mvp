@@ -22,6 +22,7 @@ The CLI is also invocable via:
     python -m crossnection_mvp.main run --kpi "..." --process-map ...
 """
 from crossnection_mvp.utils.error_handling import with_robust_error_handling
+from crossnection_mvp.utils.debug_helpers import dump_context_state
 # Importa e configura il logger OpenAI (aggiungi questa parte)
 try:
     import openai
@@ -153,6 +154,16 @@ def test():
         console.print(f"[bold red]✖ Test failure:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
 
+@app.command()
+def debug_dump():
+    """Dump the current state of the Context Store to a file."""
+    console.rule("[bold cyan]Crossnection – DEBUG DUMP")
+    try:
+        dump_context_state()
+        console.print("[bold green]✔ Context Store state dumped to 'context_dump.json'.")
+    except Exception as exc:
+        console.print(f"[bold red]✖ Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
 
 @app.command()
 def replay(session_id: Optional[str] = typer.Option(None, help="Session ID to replay")):

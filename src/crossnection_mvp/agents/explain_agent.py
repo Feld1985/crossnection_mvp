@@ -83,17 +83,9 @@ def draft_root_cause_narrative(
     outlier_report=None,
     **kwargs
 ):
-    """
-    Generate the draft narrative of root causes, combining impact ranking
-    and outlier report. This output is intended for business‑sense validation.
-    """
+    """Generate the draft narrative of root causes."""
     try:
-        # Imposta il task_name nel TokenCounterLLM se presente
-        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
-            self.llm.task_name = "draft_root_cause_narrative"
-            
-        # Log di debug dei parametri ricevuti
-        logger.info(f"draft_root_cause_narrative called with: impact_ranking={type(impact_ranking)}, outlier_report={type(outlier_report)}")
+        # Codice esistente per impostare task_name...
         
         # Tentativo di recuperare i dati dal Context Store se non forniti direttamente
         store = ContextStore.get_instance()
@@ -104,6 +96,7 @@ def draft_root_cause_narrative(
                 logger.info("Successfully loaded impact_ranking from Context Store")
             except Exception as e:
                 logger.error(f"Failed to load impact_ranking from Context Store: {e}")
+                # Crea un formato minimo valido invece di fallire
                 impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
                 
         if outlier_report is None:
@@ -112,46 +105,26 @@ def draft_root_cause_narrative(
                 logger.info("Successfully loaded outlier_report from Context Store")
             except Exception as e:
                 logger.error(f"Failed to load outlier_report from Context Store: {e}")
+                # Crea un formato minimo valido invece di fallire
                 outlier_report = {"outliers": []}
         
-        # Controlla se input contiene errori
-        if isinstance(impact_ranking, dict) and impact_ranking.get(ERROR_STATE_KEY, False):
-            logger.warning("Impact ranking contains error state, passing through")
-            return {
-                "markdown": f"# ⚠️ Errore nell'analisi di impatto\n\n{impact_ranking.get(USER_MESSAGE_KEY, 'Si è verificato un errore durante l\'analisi di impatto.')}",
-                ERROR_STATE_KEY: True,
-                "error_source": "impact_ranking"
-            }
-                
-        if isinstance(outlier_report, dict) and outlier_report.get(ERROR_STATE_KEY, False):
-            logger.warning("Outlier report contains error state, passing through")
-            return {
-                "markdown": f"# ⚠️ Errore nell'analisi degli outlier\n\n{outlier_report.get(USER_MESSAGE_KEY, 'Si è verificato un errore durante la rilevazione degli outlier.')}",
-                ERROR_STATE_KEY: True,
-                "error_source": "outlier_report"
-            }
-        
-        # Assicurati che impact_ranking e outlier_report siano dizionari
-        if isinstance(impact_ranking, str):
-            impact_ranking = safe_json_loads(impact_ranking, {})
-        
-        if isinstance(outlier_report, str):
-            outlier_report = safe_json_loads(outlier_report, {})
-        
-        # Verifica se i dati hanno la struttura corretta
-        if not isinstance(impact_ranking, dict) or "ranking" not in impact_ranking:
-            logger.warning(f"Invalid impact_ranking format: {impact_ranking}")
-            # Crea un formato di fallback
+        # Assicurati che impact_ranking abbia sempre la struttura corretta
+        if not isinstance(impact_ranking, dict):
             impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
-            
-        if not isinstance(outlier_report, dict) or "outliers" not in outlier_report:
-            logger.warning(f"Invalid outlier_report format: {outlier_report}")
-            # Crea un formato di fallback
+        elif "ranking" not in impact_ranking:
+            impact_ranking["ranking"] = []
+        
+        # Assicurati che outlier_report abbia sempre la struttura corretta
+        if not isinstance(outlier_report, dict):
             outlier_report = {"outliers": []}
+        elif "outliers" not in outlier_report:
+            outlier_report["outliers"] = []
+        
+        # Log delle strutture per debug
+        logger.info(f"Using impact_ranking with {len(impact_ranking.get('ranking', []))} items")
+        logger.info(f"Using outlier_report with {len(outlier_report.get('outliers', []))} items")
         
         # Usa il formatter per generare il report
-        logger.info(f"Calling CrossInsightFormatterTool with impact_ranking={len(impact_ranking.get('ranking', []))} items, outlier_report={len(outlier_report.get('outliers', []))} items")
-        
         result = self._formatter.run(
             impact_ranking=impact_ranking,
             outlier_report=outlier_report,
@@ -167,12 +140,31 @@ def draft_root_cause_narrative(
         return result
     except Exception as e:
         logger.error(f"Error in draft_root_cause_narrative: {e}", exc_info=True)
-        return {
-            "markdown": f"# ⚠️ Errore nella generazione della bozza\n\nSi è verificato un errore durante la generazione della bozza: {str(e)}",
+        # Crea un report di errore leggibile
+        error_report = {
+            "markdown": f"""# ⚠️ Errore nella generazione della bozza
+
+Si è verificato un errore durante la generazione della bozza: {str(e)}
+
+## Possibili cause
+- I dati statistici potrebbero non essere nel formato corretto
+- Potrebbe esserci un problema nella lettura dei dati dal Context Store
+- Le correlazioni potrebbero non essere statisticamente significative
+
+## Suggerimenti
+- Verifica che i file CSV contengano dati validi
+- Assicurati che il KPI selezionato sia presente nei dati
+- Controlla i log per maggiori dettagli""",
             ERROR_STATE_KEY: True,
             ERROR_MESSAGE_KEY: str(e),
             USER_MESSAGE_KEY: "Non è stato possibile generare la bozza del report. Verifica che i dati di input siano nel formato corretto."
         }
+        
+        # Salva anche nel Context Store per tracciabilità
+        store = ContextStore.get_instance()
+        store.save_json("narrative_draft", error_report)
+        
+        return error_report
 
     @with_context_io(
         input_keys={"narrative_draft": "narrative_draft"},

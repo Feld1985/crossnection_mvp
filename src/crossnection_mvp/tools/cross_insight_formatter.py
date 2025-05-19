@@ -176,38 +176,19 @@ class CrossInsightFormatterTool(BaseTool):
     args_schema = CrossInsightFormatterToolSchema
 
     def _run(self, 
-         description: Optional[str] = None,
-         impact_ranking: Optional[Dict[str, Any]] = None,
-         outlier_report: Optional[Dict[str, Any]] = None,
-         feedback: Optional[str] = None,
-         mode: str = "draft",
-         k_top: int = 5,
-         output_html: bool = False,
-         metadata: Optional[Dict[str, Any]] = None,
-         **kwargs) -> str:
+        description: Optional[str] = None,
+        impact_ranking: Optional[Dict[str, Any]] = None,
+        outlier_report: Optional[Dict[str, Any]] = None,
+        feedback: Optional[str] = None,
+        mode: str = "draft",
+        k_top: int = 5,
+        output_html: bool = False,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs) -> str:
         """
         Main entry point required by BaseTool.
         """
         print(f"DEBUG: CrossInsightFormatterTool received params: description={description is not None}, impact_ranking={impact_ranking is not None}, outlier_report={outlier_report is not None}")
-    
-        # Migliora il debug per mostrare più dettagli sui dati ricevuti
-        if impact_ranking is not None:
-            if isinstance(impact_ranking, dict):
-                ranking_list = impact_ranking.get('ranking', [])
-                print(f"DEBUG: impact_ranking contains {len(ranking_list)} items")
-                # Mostra un esempio degli elementi se presenti
-                if ranking_list:
-                    print(f"DEBUG: First ranking item example: {ranking_list[0]}")
-            else:
-                print(f"DEBUG: impact_ranking is not a dict, but a {type(impact_ranking)}")
-                
-        if outlier_report is not None:
-            if isinstance(outlier_report, dict):
-                outliers = outlier_report.get('outliers', [])
-                print(f"DEBUG: outlier_report contains {len(outliers)} outliers")
-            else:
-                print(f"DEBUG: outlier_report is not a dict, but a {type(outlier_report)}")
-        
         print(f"DEBUG: CrossInsightFormatter using mode={mode}, k_top={k_top}")
         
         # Se non abbiamo i dati direttamente, prova a caricarli dal Context Store
@@ -224,6 +205,7 @@ class CrossInsightFormatterTool(BaseTool):
                     print(f"DEBUG: impact_ranking from Context Store has unexpected format: {impact_ranking}")
             except Exception as e:
                 print(f"WARNING: Failed to load impact_ranking from Context Store: {e}")
+                impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
                     
         if outlier_report is None:
             try:
@@ -236,9 +218,81 @@ class CrossInsightFormatterTool(BaseTool):
                     print(f"DEBUG: outlier_report from Context Store has unexpected format: {outlier_report}")
             except Exception as e:
                 print(f"WARNING: Failed to load outlier_report from Context Store: {e}")
+                outlier_report = {"outliers": []}
+        
+        if isinstance(impact_ranking, dict) and any(str(k).isdigit() for k in impact_ranking.keys()):
+           normalized_ranking = []
+           for _, item in sorted(impact_ranking.items()):
+            normalized_ranking.append(item)
+           impact_ranking = normalized_ranking
+        
+        # Normalizza il formato di impact_ranking
+        if isinstance(impact_ranking, dict):
+            # Caso 1: Formato standard {'ranking': [...]}
+            if "ranking" in impact_ranking:
+                pass
+            # Caso 2: Formato numerato {1: {...}, 2: {...}}
+            elif any(str(k).isdigit() for k in impact_ranking.keys()):
+                normalized_ranking = []
+                for _, item in sorted([(int(k) if str(k).isdigit() else k, v) 
+                                    for k, v in impact_ranking.items()]):
+                    if isinstance(item, dict) and "driver_name" in item:
+                        normalized_item = {
+                            "driver_name": item["driver_name"],
+                            "r": item.get("correlation", item.get("r", 0)),
+                            "p_value": item.get("p_value", 1.0),
+                            "score": abs(item.get("correlation", item.get("r", 0))),
+                            "strength": self._determine_strength(item),
+                            "explanation": item.get("interpretation", "")
+                        }
+                        normalized_ranking.append(normalized_item)
+                impact_ranking = {"kpi_name": "Default KPI", "ranking": normalized_ranking}
+            # Caso 3: Fallback, crea una struttura vuota valida
+            else:
+                impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
+        else:
+            # Non è un dizionario, crea una struttura vuota valida
+            impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
+        
+        # Normalizza outlier_report in formato standard con outliers array
+        if isinstance(outlier_report, dict) and "outliers" not in outlier_report:
+            normalized_outliers = []
+            for driver_name, info in outlier_report.items():
+                if isinstance(info, dict) and "outlier_flag" in info:
+                    normalized_outliers.append({
+                    "driver_name": driver_name,
+                    **info
+                })
+            outlier_report = {"outliers": normalized_outliers}
+    
+        # Normalizza il formato di outlier_report
+        if isinstance(outlier_report, dict):
+            # Caso 1: Formato standard {'outliers': [...]}
+            if "outliers" in outlier_report:
+                pass
+            # Caso 2: Formato per driver {'driver1': {...}, 'driver2': {...}}
+            elif any(k != "kpi" and k != "success" for k in outlier_report.keys()):
+                normalized_outliers = []
+                for driver, info in outlier_report.items():
+                    if driver in ["kpi", "success"]:
+                        continue
+                    if isinstance(info, dict) and "outlier_flag" in info:
+                        if info["outlier_flag"]:
+                            normalized_outliers.append({
+                                "driver": driver,
+                                "row": -1,  # Placeholder quando non abbiamo righe specifiche
+                                "description": info.get("description", "")
+                            })
+                outlier_report = {"kpi": self._kpi_name_from_impact(impact_ranking), "outliers": normalized_outliers}
+            # Caso 3: Fallback, crea una struttura vuota valida
+            else:
+                outlier_report = {"outliers": []}
+        else:
+            # Non è un dizionario, crea una struttura vuota valida
+            outlier_report = {"outliers": []}
         
         # Gestione dello scenario in cui l'agente passa direttamente un testo narrativo in 'description'
-        if description and (not impact_ranking or not outlier_report):
+        if description and (not impact_ranking.get('ranking') or not outlier_report.get('outliers')):
             print(f"DEBUG: Using description as content: {description[:100]}...")
             result = {"markdown": description, "status": "success"}
             
@@ -250,46 +304,81 @@ class CrossInsightFormatterTool(BaseTool):
             
             return json.dumps(result)
         
-        # Default per impact_ranking
-        if not impact_ranking:
-            impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
-        
-        # Default per outlier_report
-        if not outlier_report:
-            outlier_report = {"outliers": []}
-        
         # Verifica la struttura corretta degli input
         valid_impact_ranking = isinstance(impact_ranking, dict) and 'ranking' in impact_ranking
         valid_outlier_report = isinstance(outlier_report, dict) and 'outliers' in outlier_report
         
         if not valid_impact_ranking or not valid_outlier_report:
             print(f"DEBUG: Invalid input structure: valid_impact_ranking={valid_impact_ranking}, valid_outlier_report={valid_outlier_report}")
-            error_result = {
-                "markdown": """
-                # 📊 Problema con il formato dei dati
-
-                L'analisi non può essere completata perché i dati di input non sono nel formato atteso.
-
-                ## Problemi rilevati:
-                - {"Impact ranking" if not valid_impact_ranking else ""} {"Outlier report" if not valid_outlier_report else ""}
-
-                Si consiglia di verificare che:
-                1. Lo StatsAgent abbia completato correttamente la sua analisi
-                2. Il Context Store contenga i dati nel formato corretto
-                3. Non ci siano stati errori nelle fasi precedenti
-
-                *L'amministratore può controllare i log per maggiori dettagli.*
-                """,
-                "status": "error"
-            }
             
-            # Salva nel Context Store
-            if mode == "draft":
-                store.save_json("narrative_draft", error_result)
-            else:
-                store.save_json("root_cause_report", error_result)
+            # Invece di fallire, proviamo a creare strutture valide
+            if not valid_impact_ranking:
+                impact_ranking = {"kpi_name": "Default KPI", "ranking": []}
+            
+            if not valid_outlier_report:
+                outlier_report = {"outliers": []}
+            
+            # Se entrambe le strutture sono vuote, genera un messaggio di errore
+            if not impact_ranking.get('ranking') and not outlier_report.get('outliers'):
+                error_result = {
+                    "markdown": """
+                    # 📊 Problema con il formato dei dati
+
+                    L'analisi non può essere completata perché i dati di input non sono nel formato atteso.
+
+                    ## Problemi rilevati:
+                    - Impact ranking non valido o vuoto
+                    - Outlier report non valido o vuoto
+
+                    Si consiglia di verificare che:
+                    1. Lo StatsAgent abbia completato correttamente la sua analisi
+                    2. Il Context Store contenga i dati nel formato corretto
+                    3. Non ci siano stati errori nelle fasi precedenti
+
+                    *L'amministratore può controllare i log per maggiori dettagli.*
+                    """,
+                    "status": "error"
+                }
                 
-            return json.dumps(error_result)
+                # Salva nel Context Store
+                if mode == "draft":
+                    store.save_json("narrative_draft", error_result)
+                else:
+                    store.save_json("root_cause_report", error_result)
+                    
+                return json.dumps(error_result)
+        
+        # Usa il metodo run per elaborare i dati normalizzati
+        result = self.run(
+            impact_ranking=impact_ranking,
+            outlier_report=outlier_report,
+            feedback=feedback,
+            mode=mode,
+            k_top=k_top,
+            output_html=output_html
+        )
+        
+        # Converti il risultato in JSON se necessario
+        if not isinstance(result, str):
+            result = json.dumps(result, ensure_ascii=False)
+        
+        return result
+    
+def _determine_strength(self, item):
+    """Determina la forza della correlazione basata sui dati."""
+    r = abs(item.get("correlation", item.get("r", 0)))
+    if r > 0.7:
+        return "Strong"
+    elif r > 0.3:
+        return "Moderate"
+    else:
+        return "Weak"
+
+def _kpi_name_from_impact(self, impact_ranking):
+    """Estrae il nome del KPI da impact_ranking."""
+    if isinstance(impact_ranking, dict):
+        return impact_ranking.get("kpi_name", "Default KPI")
+    return "Default KPI"
 
     # ---------------------------------------------------------------------#
     # Original implementation

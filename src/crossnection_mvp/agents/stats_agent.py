@@ -199,36 +199,56 @@ class StatsAgent(cr.BaseAgent):
         result = tool.run(df_csv=df_csv, kpi=kpi, mode="ranking")
         return json.loads(result) if isinstance(result, str) else result
 
-    @with_context_io(
-        input_keys={"df_csv": "unified_dataset"}, 
-        output_key="outlier_report", 
-        output_type="json"
-    )
-    @with_robust_error_handling(
-        stage_name="detect_outliers",
-        store_error_key="outlier_report"
-    )
-    def detect_outliers(self, **kwargs):
-        """
-        Identifies outliers in the driver datasets.
-        Enhanced with error handling.
-        """
-        # Imposta il task_name nel TokenCounterLLM se presente
-        if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
-            self.llm.task_name = "detect_outliers"
-            
-        # Estrai parametri dall'input
-        df_csv = kwargs.get("df_csv", "")
-        kpi = kwargs.get("kpi", "value_speed")
+@with_context_io(
+    input_keys={"df_csv": "unified_dataset"}, 
+    output_key="outlier_report", 
+    output_type="json"
+)
+@with_robust_error_handling(
+    stage_name="detect_outliers",
+    store_error_key="outlier_report"
+)
+def detect_outliers(self, **kwargs):
+    """Identifica outlier nei dataset dei driver."""
+    # Imposta il task_name nel TokenCounterLLM se presente
+    if hasattr(self, "llm") and hasattr(self.llm, "task_name"):
+        self.llm.task_name = "detect_outliers"
         
-        logger.info(f"StatsAgent.detect_outliers called with kpi={kpi}, df_csv_len={len(df_csv) if df_csv else 0}")
-        
-        # Ottieni lo strumento e eseguilo
-        from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
-        tool = CrossStatEngineTool()
-        
-        result = tool.run(df_csv=df_csv, kpi=kpi, mode="outliers")
-        return json.loads(result) if isinstance(result, str) else result
+    # Estrai parametri dall'input
+    df_csv = kwargs.get("df_csv", "")
+    kpi = kwargs.get("kpi", "value_speed")
+    
+    logger.info(f"StatsAgent.detect_outliers called with kpi={kpi}, df_csv_len={len(df_csv) if df_csv else 0}")
+    
+    # Ottieni lo strumento e eseguilo
+    from crossnection_mvp.tools.cross_stat_engine import CrossStatEngineTool
+    tool = CrossStatEngineTool()
+    
+    result = tool.run(df_csv=df_csv, kpi=kpi, mode="outliers")
+    
+    # Normalizza il risultato
+    if isinstance(result, str):
+        try:
+            result_obj = json.loads(result)
+        except:
+            # Fallback se non è JSON valido
+            result_obj = {"kpi": kpi, "outliers": [], "success": False}
+    else:
+        result_obj = result
+    
+    # Assicurati che la struttura sia sempre corretta
+    if "outliers" not in result_obj:
+        result_obj["outliers"] = []
+    if "kpi" not in result_obj:
+        result_obj["kpi"] = kpi
+    if "success" not in result_obj:
+        result_obj["success"] = True
+    
+    # Salva nel Context Store per sicurezza
+    store = ContextStore.get_instance()
+    store.save_json("outlier_report", result_obj)
+    
+    return result_obj
 
     # ------------------------------------------------------------------
     # Friendly repr for debugging

@@ -50,7 +50,8 @@ compute_correlations:
   agent: stats_agent
   description: |
     Compute pairwise statistical correlations between each driver and the KPI,
-    including significance tests.
+    including significance tests. The output MUST include 'r' and 'p_value' fields
+    for each driver, and be saved in the Context Store as 'correlation_matrix'.
   input:
     df_csv: "{{ unified_dataset_ref }}"  # Riferimento al Context Store
     mode: "correlation"
@@ -76,8 +77,14 @@ rank_impact:
 detect_outliers:
   agent: stats_agent
   description: |
-    Identify outliers in the driver datasets and flag data points that may
-    distort the analysis.
+    Identify outliers in the driver datasets using the cross_stat_engine tool
+    with the specific parameters:
+    - df_csv: The unified dataset (from context store)
+    - kpi: The name of the KPI column (default "value_speed")
+    - mode: Must be exactly "outliers" (not "outlier detection")
+    
+    The output MUST include an 'outliers' array, even if empty,
+    and be saved in the Context Store as 'outlier_report'.
   input:
     df_csv: "{{ unified_dataset_ref }}"  # Riferimento al Context Store
     kpi: "value_speed"  # Default KPI
