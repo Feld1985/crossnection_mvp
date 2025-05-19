@@ -73,6 +73,11 @@ def _load_json_like(blob: str | Path | Dict[str, Any]) -> Dict[str, Any]:
 
 def _top_drivers(impact_ranking: Any, k: int = 5) -> List[Dict[str, Any]]:
     """Return top-k drivers by composite score (already sorted)."""
+    # Verifica input e fornisci dati di default se necessario
+    if impact_ranking is None:
+        print("WARNING: impact_ranking is None, returning empty list")
+        return []
+        
     # Handle different input formats
     if isinstance(impact_ranking, dict):
         if "ranking" in impact_ranking:
@@ -90,10 +95,38 @@ def _top_drivers(impact_ranking: Any, k: int = 5) -> List[Dict[str, Any]]:
     
     # Ensure we have a list before slicing
     if not isinstance(ranking, list):
-        ranking = list(ranking) if hasattr(ranking, '__iter__') else [ranking]
+        try:
+            ranking = list(ranking) if hasattr(ranking, '__iter__') else [ranking]
+        except Exception as e:
+            print(f"WARNING: Error converting ranking to list: {e}")
+            ranking = []
+    
+    # Se la lista è vuota, restituisci vuota
+    if not ranking:
+        return []
+        
+    try:
+        # Verifica che ogni elemento sia un dizionario con i campi necessari
+        for i, item in enumerate(ranking):
+            if not isinstance(item, dict):
+                print(f"WARNING: Ranking item {i} is not a dictionary: {item}")
+                ranking[i] = {"driver_name": f"Unknown driver {i}", "score": 0, "p_value": 1.0, "r": 0}
+            elif "driver_name" not in item:
+                print(f"WARNING: Ranking item {i} missing driver_name: {item}")
+                item["driver_name"] = f"Unknown driver {i}"
+            
+            # Assicurati che ci siano valori per score, p_value e r
+            if "score" not in item and "effect_size" not in item:
+                item["score"] = 0
+            if "p_value" not in item:
+                item["p_value"] = 1.0
+            if "r" not in item:
+                item["r"] = 0
+    except Exception as e:
+        print(f"WARNING: Error checking ranking items: {e}")
     
     # Now slice the list safely
-    return ranking[:k]
+    return ranking[:k] if k < len(ranking) else ranking
 
 
 def _outlier_summary(outliers: Sequence[Dict[str, Any]]) -> str:
@@ -143,19 +176,39 @@ class CrossInsightFormatterTool(BaseTool):
     args_schema = CrossInsightFormatterToolSchema
 
     def _run(self, 
-             description: Optional[str] = None,
-             impact_ranking: Optional[Dict[str, Any]] = None,
-             outlier_report: Optional[Dict[str, Any]] = None,
-             feedback: Optional[str] = None,
-             mode: str = "draft",
-             k_top: int = 5,
-             output_html: bool = False,
-             metadata: Optional[Dict[str, Any]] = None,
-             **kwargs) -> str:
+         description: Optional[str] = None,
+         impact_ranking: Optional[Dict[str, Any]] = None,
+         outlier_report: Optional[Dict[str, Any]] = None,
+         feedback: Optional[str] = None,
+         mode: str = "draft",
+         k_top: int = 5,
+         output_html: bool = False,
+         metadata: Optional[Dict[str, Any]] = None,
+         **kwargs) -> str:
         """
         Main entry point required by BaseTool.
         """
         print(f"DEBUG: CrossInsightFormatterTool received params: description={description is not None}, impact_ranking={impact_ranking is not None}, outlier_report={outlier_report is not None}")
+    
+        # Migliora il debug per mostrare più dettagli sui dati ricevuti
+        if impact_ranking is not None:
+            if isinstance(impact_ranking, dict):
+                ranking_list = impact_ranking.get('ranking', [])
+                print(f"DEBUG: impact_ranking contains {len(ranking_list)} items")
+                # Mostra un esempio degli elementi se presenti
+                if ranking_list:
+                    print(f"DEBUG: First ranking item example: {ranking_list[0]}")
+            else:
+                print(f"DEBUG: impact_ranking is not a dict, but a {type(impact_ranking)}")
+                
+        if outlier_report is not None:
+            if isinstance(outlier_report, dict):
+                outliers = outlier_report.get('outliers', [])
+                print(f"DEBUG: outlier_report contains {len(outliers)} outliers")
+            else:
+                print(f"DEBUG: outlier_report is not a dict, but a {type(outlier_report)}")
+        
+        print(f"DEBUG: CrossInsightFormatter using mode={mode}, k_top={k_top}")
         
         # Se non abbiamo i dati direttamente, prova a caricarli dal Context Store
         store = ContextStore.get_instance()
@@ -164,13 +217,23 @@ class CrossInsightFormatterTool(BaseTool):
             try:
                 impact_ranking = store.load_json("impact_ranking")
                 print(f"DEBUG: Loaded impact_ranking from Context Store")
+                # Verifica il contenuto caricato
+                if isinstance(impact_ranking, dict) and 'ranking' in impact_ranking:
+                    print(f"DEBUG: impact_ranking has {len(impact_ranking['ranking'])} items")
+                else:
+                    print(f"DEBUG: impact_ranking from Context Store has unexpected format: {impact_ranking}")
             except Exception as e:
                 print(f"WARNING: Failed to load impact_ranking from Context Store: {e}")
-                
+                    
         if outlier_report is None:
             try:
                 outlier_report = store.load_json("outlier_report")
                 print(f"DEBUG: Loaded outlier_report from Context Store")
+                # Verifica il contenuto caricato
+                if isinstance(outlier_report, dict) and 'outliers' in outlier_report:
+                    print(f"DEBUG: outlier_report has {len(outlier_report['outliers'])} items")
+                else:
+                    print(f"DEBUG: outlier_report from Context Store has unexpected format: {outlier_report}")
             except Exception as e:
                 print(f"WARNING: Failed to load outlier_report from Context Store: {e}")
         
@@ -195,52 +258,32 @@ class CrossInsightFormatterTool(BaseTool):
         if not outlier_report:
             outlier_report = {"outliers": []}
         
-        print(f"DEBUG: CrossInsightFormatter using mode={mode}, k_top={k_top}")
+        # Verifica la struttura corretta degli input
+        valid_impact_ranking = isinstance(impact_ranking, dict) and 'ranking' in impact_ranking
+        valid_outlier_report = isinstance(outlier_report, dict) and 'outliers' in outlier_report
         
-        try:
-            # Run the original implementation
-            result = self.run(
-                impact_ranking=impact_ranking,
-                outlier_report=outlier_report,
-                feedback=feedback,
-                mode=mode,
-                k_top=k_top,
-                output_html=output_html
-            )
-            
-            # Salva nel Context Store
-            if mode == "draft":
-                store.save_json("narrative_draft", result)
-            else:
-                store.save_json("root_cause_report", result)
-            
-            # Convert result to string if needed by CrewAI
-            if isinstance(result, dict):
-                return json.dumps(result, ensure_ascii=False)
-            return result
-        except Exception as e:
-            error_msg = f"ERROR in CrossInsightFormatterTool: {e}"
-            print(error_msg)
-            # Fornisci un output minimo che non interrompa il flusso
+        if not valid_impact_ranking or not valid_outlier_report:
+            print(f"DEBUG: Invalid input structure: valid_impact_ranking={valid_impact_ranking}, valid_outlier_report={valid_outlier_report}")
             error_result = {
-                "markdown": f"""
-# 📊 Error in Root-Cause Narrative
+                "markdown": """
+                # 📊 Problema con il formato dei dati
 
-An error occurred while generating the narrative: {e}
+                L'analisi non può essere completata perché i dati di input non sono nel formato atteso.
 
-## Validation Instructions
+                ## Problemi rilevati:
+                - {"Impact ranking" if not valid_impact_ranking else ""} {"Outlier report" if not valid_outlier_report else ""}
 
-Please review the input data and ensure:
-- The KPI is correctly specified
-- There is sufficient driver data to analyze
-- The data format is correct
+                Si consiglia di verificare che:
+                1. Lo StatsAgent abbia completato correttamente la sua analisi
+                2. Il Context Store contenga i dati nel formato corretto
+                3. Non ci siano stati errori nelle fasi precedenti
 
-*You can provide feedback on this error to help improve the process.*
-""",
-                "error": str(e)
+                *L'amministratore può controllare i log per maggiori dettagli.*
+                """,
+                "status": "error"
             }
             
-            # Salva anche l'errore nel Context Store
+            # Salva nel Context Store
             if mode == "draft":
                 store.save_json("narrative_draft", error_result)
             else:
@@ -352,28 +395,34 @@ Please review the input data and ensure:
             error_state = True
             error_messages.append(outlier_report.get("user_message", "Errore nell'analisi degli outlier"))
         
+        # Verifica se i ranking sono vuoti
+        ranking = impact_ranking.get('ranking', [])
+        if len(ranking) == 0:
+            error_state = True
+            error_messages.append("Nessun driver trovato nell'analisi di impatto")
+        
         # Se ci sono errori, genera un report che li segnala
         if error_state:
             # Preparare la lista degli errori prima della f-string
             error_list = "- " + "\n- ".join(error_messages)
             
             return f"""
-# 📊 Draft Root-Cause Narrative
+                    # 📊 Draft Root-Cause Narrative
 
-## Attenzione: Problemi rilevati
+                    ## Attenzione: Problemi rilevati
 
-Sono stati riscontrati alcuni problemi durante l'analisi:
+                    Sono stati riscontrati alcuni problemi durante l'analisi:
 
-{error_list}
+                    {error_list}
 
-## Suggerimenti per risolvere
+                    ## Suggerimenti per risolvere
 
-- Verifica che i file CSV contengano dati validi e nel formato corretto
-- Controlla che il KPI selezionato sia presente nei dati
-- Assicurati che ci siano sufficienti dati numerici per l'analisi statistica
+                    - Verifica che i file CSV contengano dati validi e nel formato corretto
+                    - Controlla che il KPI selezionato sia presente nei dati
+                    - Assicurati che ci siano sufficienti dati numerici per l'analisi statistica
 
-*Puoi procedere con una revisione parziale dei risultati disponibili o caricare nuovi dati per riprovare l'analisi.*
-        """
+                    *Puoi procedere con una revisione parziale dei risultati disponibili o caricare nuovi dati per riprovare l'analisi.*
+                    """
         
         # Extract KPI name from various possible structures
         kpi_name = "KPI"
@@ -383,6 +432,31 @@ Sono stati riscontrati alcuni problemi durante l'analisi:
         
         # Get top drivers using the robust helper function
         top = _top_drivers(impact_ranking, k=k_top)
+        
+        # Se non ci sono driver, mostra un errore
+        if not top:
+            return f"""
+            # 📊 Draft Root-Cause Narrative for {kpi_name}
+
+            ## Attenzione: Nessun driver significativo trovato
+
+            L'analisi non ha identificato driver con correlazione statisticamente significativa rispetto al KPI.
+
+            Questo potrebbe essere dovuto a:
+            - Dati insufficienti per l'analisi
+            - Mancanza di correlazioni reali tra i driver e il KPI
+            - Problemi nel formato o nella qualità dei dati
+
+            ## Suggerimenti
+
+            - Valuta l'inclusione di altri driver potenzialmente rilevanti
+            - Verifica che il periodo di analisi sia sufficientemente lungo
+            - Controlla la qualità dei dati nei driver esistenti
+
+            ## Validation Instructions
+
+            Si prega di confermare se questa assenza di correlazioni è in linea con le aspettative di business o se è necessario rivedere l'approccio di analisi.
+            """
                 
         context = {
             "top_drivers": top,

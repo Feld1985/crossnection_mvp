@@ -1,0 +1,4 @@
+{
+  "markdown": "\n                # 📊 Problema con il formato dei dati\n\n                L'analisi non può essere completata perché i dati di input non sono nel formato atteso.\n\n                ## Problemi rilevati:\n                - {\"Impact ranking\" if not valid_impact_ranking else \"\"} {\"Outlier report\" if not valid_outlier_report else \"\"}\n\n                Si consiglia di verificare che:\n                1. Lo StatsAgent abbia completato correttamente la sua analisi\n                2. Il Context Store contenga i dati nel formato corretto\n                3. Non ci siano stati errori nelle fasi precedenti\n\n                *L'amministratore può controllare i log per maggiori dettagli.*\n                ",
+  "status": "error"
+}

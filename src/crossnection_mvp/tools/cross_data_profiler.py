@@ -122,6 +122,52 @@ class CrossDataProfilerTool(BaseTool):
         csv_folder = input_data.get("csv_folder", "")
         print(f"DEBUG: Extracted csv_folder: {csv_folder}")
         
+            # === INIZIO MODIFICA: Miglioramento della validazione della directory ===
+        if not csv_folder:
+            print("WARNING: csv_folder parameter is empty, using default 'examples/driver_csvs'")
+            csv_folder = "examples/driver_csvs"
+        elif isinstance(csv_folder, str) and (csv_folder.endswith('.csv') or csv_folder.endswith('.json')):
+            # Rilevato un file invece di una directory
+            print(f"WARNING: csv_folder '{csv_folder}' appears to be a file path, not a directory")
+            
+            # Gestione speciale dei file dal Context Store
+            if "\\" in csv_folder or "/" in csv_folder:
+                try:
+                    # Tenta di estrarre il nome della sessione dalla prima parte del percorso
+                    session_id = Path(csv_folder).parts[0]
+                    print(f"INFO: Extracted potential session ID: {session_id}")
+                    csv_folder = "examples/driver_csvs"  # Usa la directory di default
+                    
+                    # Carica dal Context Store invece che dal file
+                    store = ContextStore.get_instance()
+                    
+                    # Se si tratta di un riferimento a un dataset unificato, restituisci i dati esistenti
+                    if "unified_dataset" in csv_folder:
+                        # Restituisci direttamente il report esistente se disponibile
+                        try:
+                            unified_dataset = store.load_dataframe("unified_dataset")
+                            data_report = store.load_json("data_report")
+                            unified_path = store.save_dataframe("unified_dataset", unified_dataset)
+                            report_path = store.save_json("data_report", data_report)
+                            
+                            return json.dumps({
+                                "unified_dataset_ref": unified_path,
+                                "data_report_ref": report_path
+                            }, ensure_ascii=False)
+                        except Exception as e:
+                            print(f"WARNING: Failed to load from Context Store: {e}")
+                except Exception as e:
+                    print(f"WARNING: Error processing file path reference: {e}")
+                    csv_folder = "examples/driver_csvs"  # Fallback alla directory di default
+            else:
+                csv_folder = "examples/driver_csvs"  # Fallback alla directory di default
+        
+        # Validazione e correzione del path
+        if csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files", "user_uploaded_csv_path"]:
+            print(f"WARNING: Detected invalid path '{csv_folder}', correcting to 'examples/driver_csvs'")
+            csv_folder = "examples/driver_csvs"
+        # === FINE MODIFICA ===
+        
         # Validazione e correzione del path
         if not csv_folder or csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files", "user_uploaded_csv_path"] or (
             isinstance(csv_folder, str) and not Path(csv_folder).is_dir() and Path("examples/driver_csvs").is_dir()

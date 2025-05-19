@@ -150,6 +150,28 @@ class DataAgent(cr.BaseAgent):
             
         # Estrai data_report dall'input
         data_report = kwargs.get("data_report", {})
+        data_report_ref = kwargs.get("data_report_ref", "")
+        
+        # Gestione avanzata dei riferimenti
+        if not data_report and isinstance(data_report_ref, str) and len(data_report_ref) > 0:
+            try:
+                # Se è un riferimento al Context Store o un percorso file
+                store = ContextStore.get_instance()
+                logger.info(f"Attempting to load data_report from reference: {data_report_ref}")
+                
+                # Estrai il nome base senza estensione
+                path = Path(data_report_ref)
+                base_name = path.stem
+                if '.' in base_name:  # Gestisce nomi del tipo 'data_report.v1'
+                    base_name = base_name.split('.')[0]
+                    
+                # Carica dal Context Store
+                data_report = store.load_json(base_name)
+                logger.info(f"Successfully loaded data_report from Context Store using key: {base_name}")
+            except Exception as e:
+                logger.warning(f"Failed to load data_report from reference: {e}")
+                # Fallback al default
+                data_report = {}
         
         # Verifica se data_report contiene un errore
         if isinstance(data_report, dict) and data_report.get("error_state", False):
@@ -161,7 +183,7 @@ class DataAgent(cr.BaseAgent):
                 "strategy": "error",
                 "key_name": "none"
             }
-            
+                
         # Analizza le colonne dai report delle tabelle
         tables = data_report.get("tables", [])
         common_columns = set()

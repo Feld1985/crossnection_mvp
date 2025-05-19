@@ -160,3 +160,19 @@ class ContextStore:
             name for name, info in self.metadata["artifacts"].items()
             if info["type"] == artifact_type
         ]
+    
+    def extract_artifact_name(self, ref_path: str) -> str:
+        if not ref_path:
+            return ""
+            
+        # Converti in Path per gestione più facile
+        path = Path(ref_path)
+        
+        # Estrai il nome file senza estensione
+        base_name = path.stem
+        
+        # Rimuovi la parte di versione se presente (es: "data_report.v1" → "data_report")
+        if '.' in base_name:
+            base_name = base_name.split('.')[0]
+            
+        return base_name

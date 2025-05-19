@@ -1,0 +1,41 @@
+{
+  "session_id": "20250519T162842Z",
+  "created_at": "2025-05-19T16:28:42.679251",
+  "artifacts": {
+    "unified_dataset": {
+      "type": "dataframe",
+      "path": "20250519T162842Z\\unified_dataset.v6.csv",
+      "created_at": "2025-05-19T16:29:09.178345",
+      "version": 6,
+      "shape": [
+        100,
+        5
+      ],
+      "columns": [
+        "join_key",
+        "timestamp",
+        "value_pressure",
+        "value_speed",
+        "value_temperature"
+      ]
+    },
+    "data_report": {
+      "type": "json",
+      "path": "20250519T162842Z\\data_report.v3.json",
+      "created_at": "2025-05-19T16:28:57.349185",
+      "version": 3
+    },
+    "correlation_matrix": {
+      "type": "json",
+      "path": "20250519T162842Z\\correlation_matrix.v6.json",
+      "created_at": "2025-05-19T16:29:09.183348",
+      "version": 6
+    },
+    "narrative_draft": {
+      "type": "json",
+      "path": "20250519T162842Z\\narrative_draft.v2.json",
+      "created_at": "2025-05-19T16:29:14.786715",
+      "version": 2
+    }
+  }
+}
