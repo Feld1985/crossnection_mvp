@@ -1,0 +1,55 @@
+{
+  "tables": [
+    {
+      "file": "examples\\driver_csvs\\pressure.csv",
+      "columns": {
+        "join_key": {
+          "dtype": "int64",
+          "nulls": 0
+        },
+        "timestamp": {
+          "dtype": "object",
+          "nulls": 0
+        },
+        "value_pressure": {
+          "dtype": "float64",
+          "nulls": 0
+        }
+      }
+    },
+    {
+      "file": "examples\\driver_csvs\\speed.csv",
+      "columns": {
+        "join_key": {
+          "dtype": "int64",
+          "nulls": 0
+        },
+        "timestamp": {
+          "dtype": "object",
+          "nulls": 0
+        },
+        "value_speed": {
+          "dtype": "float64",
+          "nulls": 0
+        }
+      }
+    },
+    {
+      "file": "examples\\driver_csvs\\temperature.csv",
+      "columns": {
+        "join_key": {
+          "dtype": "int64",
+          "nulls": 0
+        },
+        "timestamp": {
+          "dtype": "object",
+          "nulls": 0
+        },
+        "value_temperature": {
+          "dtype": "float64",
+          "nulls": 0
+        }
+      }
+    }
+  ]
+}

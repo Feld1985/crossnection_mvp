@@ -98,6 +98,13 @@ def _iqr_outliers(series: pd.Series, iqr_mult: float = 1.5) -> List[int]:
 
 def correlation_matrix(df: pd.DataFrame, *, kpi: str) -> pd.DataFrame:
     """Compute r & p per ogni colonna numerica vs kpi."""
+    print(f"DEBUG CORRELATION: Called with kpi={kpi}, df.columns={df.columns.tolist()}")
+    print(f"DEBUG CORRELATION: df.shape={df.shape}, df.head(2)=\n{df.head(2)}")
+    
+    # Verifica se il KPI esiste
+    if kpi not in df.columns:
+        print(f"ERROR: KPI '{kpi}' NOT FOUND in columns {df.columns.tolist()}")
+        # Resta del codice
     rows = []
     y = df[kpi]
     for col in df.select_dtypes(include="number").columns:
@@ -163,21 +170,16 @@ def impact_ranking(corr_df: pd.DataFrame, top_k: int | None = None) -> List[Dict
     if top_k:
         ranked = ranked.head(top_k)
     
-    # Ottieni i metadati completi dei driver
+    # Ottieni le descrizioni arricchite dei driver
     driver_names = ranked["driver_name"].tolist()
-    enriched_metadata = enrich_driver_names(driver_names)
+    enriched_names = enrich_driver_names(driver_names)
     
     # Aggiungi descrizioni ai risultati
     ranked_dict = ranked.to_dict(orient="records")
     for item in ranked_dict:
         driver = item["driver_name"]
-        if driver in enriched_metadata:
-            # Aggiungi tutti i metadati disponibili
-            metadata = enriched_metadata[driver]
-            item["driver_description"] = metadata.get("formatted_description", "")
-            item["business_context"] = metadata.get("business_context", "")
-            item["unit"] = metadata.get("unit", "")
-            item["normal_range"] = metadata.get("normal_range", [])
+        if driver in enriched_names:
+            item["driver_description"] = enriched_names[driver]
     
     return ranked_dict
 
@@ -187,6 +189,7 @@ def impact_ranking(corr_df: pd.DataFrame, top_k: int | None = None) -> List[Dict
 # ---------------------------------------------------------------------------#
 
 
+# Trova la funzione outlier_report e modifica per garantire formato standard
 def outlier_report(df: pd.DataFrame, *, kpi: str) -> Dict[str, Any]:
     """Return list of outlier points per driver (index, driver, method)."""
     outliers = []
@@ -243,13 +246,15 @@ class CrossStatEngineTool(BaseTool):
     def _run(self, input: Union[str, Dict[str, Any]] = None, **kwargs) -> str:
         """
         Main entry point required by BaseTool
+                    
+        Adattato per accettare parametri sia direttamente che nel formato {"input": ...}
         """
-        logger.info(f"CrossStatEngineTool received input: {str(input)[:100]}...")
-        
         # Gestisci il caso in cui l'input arriva come kwargs invece che sotto la chiave 'input'
         if input is None and kwargs:
             # Adatta la struttura per renderla compatibile
             input = kwargs
+        
+        logger.info(f"CrossStatEngineTool received input: {str(input)[:100]}...")
         
         # Converti l'input in un formato che possiamo usare
         unified_dataset = None
@@ -257,14 +262,90 @@ class CrossStatEngineTool(BaseTool):
         mode = "correlation"  # Default mode
         top_k = 10  # Default top_k
         
-        # Estrai i parametri dall'input
+        # Prova a caricare il dataset unificato dal Context Store
+        try:
+            store = ContextStore.get_instance()
+            unified_dataset = store.load_dataframe("unified_dataset")
+            logger.info("Successfully loaded unified dataset from Context Store")
+        except Exception as e:
+            logger.warning(f"Failed to load unified dataset from Context Store: {e}")
+            unified_dataset = None
+        
+        # Se non abbiamo ancora un dataset dal Context Store, prova il file legacy
+        if unified_dataset is None:
+            try:
+                unified_path = Path("examples/driver_csvs/unified_dataset.csv")
+                if unified_path.exists():
+                    logger.info(f"Found unified dataset at {unified_path}")
+                    unified_dataset = pd.read_csv(unified_path)
+                    # Salva nel Context Store per uso futuro
+                    store = ContextStore.get_instance()
+                    store.save_dataframe("unified_dataset", unified_dataset)
+            except Exception as e:
+                logger.error(f"Error loading unified dataset from file: {e}")
+        
+        # Se non abbiamo ancora un dataset, creane uno dai file originali
+        if unified_dataset is None:
+            try:
+                logger.info("Creating unified dataset from source files")
+                csv_files = list(Path("examples/driver_csvs").glob("*.csv"))
+                if not csv_files:
+                    raise ValueError("No CSV files found in examples/driver_csvs")
+                
+                dataframes = []
+                for file in csv_files:
+                    try:
+                        df = pd.read_csv(file)
+                        driver_name = file.stem
+                        # Rinomina 'value' per distinguere le colonne
+                        if 'value' in df.columns:
+                            df = df.rename(columns={"value": f"value_{driver_name}"})
+                        dataframes.append(df)
+                        logger.info(f"Loaded {file.name} with shape {df.shape}")
+                    except Exception as e:
+                        logger.error(f"Failed to load {file}: {e}")
+                
+                if not dataframes:
+                    raise ValueError("Failed to load any CSV files")
+                    
+                # Unisci i dataframe
+                unified_dataset = dataframes[0]
+                for df in dataframes[1:]:
+                    try:
+                        unified_dataset = unified_dataset.merge(df, on="join_key", how="outer", suffixes=("", "_dup"))
+                    except Exception as e:
+                        logger.error(f"Merge failed: {e}")
+                        continue
+                
+                # Rimuovi colonne duplicate
+                dupes = [c for c in unified_dataset.columns if c.endswith("_dup")]
+                unified_dataset.drop(columns=dupes, inplace=True)
+                
+                # Salva nel Context Store
+                store = ContextStore.get_instance()
+                store.save_dataframe("unified_dataset", unified_dataset)
+                
+                # Salva anche il file legacy per compatibilità
+                unified_path = Path("examples/driver_csvs/unified_dataset.csv")
+                unified_dataset.to_csv(unified_path, index=False)
+                
+                logger.info(f"Created and saved unified dataset with shape {unified_dataset.shape}")
+            except Exception as e:
+                logger.error(f"Error creating unified dataset: {e}")
+                # Invece di creare dati casuali, indica chiaramente l'errore
+                error_result = {
+                    ERROR_STATE_KEY: True,
+                    ERROR_MESSAGE_KEY: str(e),
+                    USER_MESSAGE_KEY: "Non è stato possibile caricare o creare un dataset valido. Verifica che i file CSV siano presenti e nel formato corretto.",
+                    "columns": []
+                }
+                return json.dumps(error_result)
+        
+        # Parse input specifico se fornito
         input_data = {}
         if isinstance(input, str):
             try:
                 input_data = json.loads(input)
-                # Se input_data ha una chiave "input", prendi il suo valore
-                if "input" in input_data and isinstance(input_data["input"], dict):
-                    input_data = input_data["input"]
                 logger.info(f"Parsed JSON string input")
             except json.JSONDecodeError:
                 # Caso speciale: l'input è una stringa CSV
@@ -276,7 +357,6 @@ class CrossStatEngineTool(BaseTool):
                         # Salva nel Context Store
                         store = ContextStore.get_instance()
                         store.save_dataframe("unified_dataset", unified_dataset)
-                        logger.info(f"Saved CSV data to Context Store, shape={unified_dataset.shape}")
                     except Exception as e:
                         logger.error(f"Error parsing CSV input: {e}")
                 else:
@@ -306,126 +386,54 @@ class CrossStatEngineTool(BaseTool):
             if "top_k" in input_data:
                 top_k = input_data["top_k"]
             
-            # Gestione per casi speciali di input non standard
-            if isinstance(input_data, dict) and ('description' in input_data or 'type' in input_data):
-                # Rileva tentativi di rilevamento outlier con formato non standard
-                if input_data.get('type') in ['outlier detection', 'outliers'] or 'outlier' in input_data.get('description', '').lower():
-                    logger.info("Detected non-standard outlier detection request, converting to standard format")
-                    mode = "outliers"
-                    # Usa kpi di default se non specificato
-                    if 'kpi' not in input_data:
-                        kpi = "value_speed"
-            
-            # Gestione speciale per df_csv: potrebbe essere file, path o content
-            if "df_csv" in input_data:
-                df_csv_value = input_data["df_csv"]
-                logger.info(f"df_csv provided: {str(df_csv_value)[:50]}")
-                
-                # Controlla se sembra essere un percorso file
-                if isinstance(df_csv_value, str) and (df_csv_value.endswith('.csv') or '\\' in df_csv_value or '/' in df_csv_value):
-                    logger.info("df_csv appears to be a file path")
-                    
-                    # Prova a caricare direttamente il file
-                    csv_path = Path(df_csv_value)
-                    if csv_path.exists():
-                        logger.info(f"Loading CSV from direct file path: {csv_path}")
-                        try:
-                            unified_dataset = pd.read_csv(csv_path)
-                            logger.info(f"Loaded dataset from file, shape={unified_dataset.shape}")
-                        except Exception as e:
-                            logger.error(f"Error loading from direct path: {e}")
-                    else:
-                        # Potrebbe essere un riferimento al Context Store
-                        logger.info("File not found, trying Context Store reference")
-                        try:
-                            # Prova a ottenere il dataset dal Context Store
-                            store = ContextStore.get_instance()
-                            
-                            # Prima opzione: usa il nome senza estensione
-                            try:
-                                artifact_name = "unified_dataset"
-                                unified_dataset = store.load_dataframe(artifact_name)
-                                logger.info(f"Loaded from Context Store with name: {artifact_name}")
-                            except Exception as e:
-                                logger.warning(f"Could not load with artifact name, trying direct path: {e}")
-                                try:
-                                    # Seconda opzione: prova a caricare direttamente dal context store 
-                                    # usando il percorso completo se contiene il session ID
-                                    if "\\" in df_csv_value or "/" in df_csv_value:
-                                        parts = Path(df_csv_value).parts
-                                        # Estrai il nome del file senza estensione
-                                        filename = Path(df_csv_value).stem
-                                        if filename:
-                                            unified_dataset = store.load_dataframe(filename.split('.')[0])
-                                            logger.info(f"Loaded from Context Store via filename: {filename}")
-                                    else:
-                                        logger.warning("Cannot parse path for Context Store lookup")
-                                except Exception as e2:
-                                    logger.error(f"Error loading via filename: {e2}")
-                        except Exception as e:
-                            logger.error(f"Error trying Context Store: {e}")
-                else:
-                    # Non sembra essere un percorso file, potrebbe essere contenuto CSV diretto
-                    logger.info("df_csv appears to be CSV content")
-                    try:
-                        from io import StringIO
-                        if isinstance(df_csv_value, str):
-                            unified_dataset = pd.read_csv(StringIO(df_csv_value))
-                            logger.info(f"Parsed CSV from string content, shape={unified_dataset.shape}")
-                        else:
-                            logger.warning(f"df_csv is not a string: {type(df_csv_value)}")
-                    except Exception as e:
-                        logger.error(f"Error parsing CSV content: {e}")
-        
-        # Se non siamo riusciti a caricare un dataset, prova dal Context Store
-        if unified_dataset is None:
-            try:
-                store = ContextStore.get_instance()
-                unified_dataset = store.load_dataframe("unified_dataset")
-                logger.info(f"Loaded dataset from Context Store as fallback, shape={unified_dataset.shape}")
-            except Exception as e:
-                logger.warning(f"Could not load from Context Store: {e}")
-                
-                # Cerca in posizioni standard
+            # Se c'è un riferimento al Context Store, usalo
+            if "ref" in input_data and isinstance(input_data["ref"], str):
                 try:
-                    path = Path("examples/driver_csvs/unified_dataset.csv")
-                    if path.exists():
-                        unified_dataset = pd.read_csv(path)
-                        logger.info(f"Loaded from standard path: {path}, shape={unified_dataset.shape}")
+                    store = ContextStore.get_instance()
+                    ref_path = input_data["ref"]
+                    if ref_path.endswith(".csv"):
+                        unified_dataset = store.load_dataframe(ref_path.split(".")[0])
+                    logger.info(f"Loaded dataset from Context Store reference: {ref_path}")
                 except Exception as e:
-                    logger.error(f"Error loading from standard path: {e}")
-        
-        # Assicurati che abbiamo un dataset valido
-        if unified_dataset is None:
-            error_result = {
-                ERROR_STATE_KEY: True,
-                ERROR_MESSAGE_KEY: "Nessun dataset valido disponibile",
-                USER_MESSAGE_KEY: "Non è stato possibile caricare o creare un dataset valido. Verifica che i file CSV siano presenti e nel formato corretto."
-            }
-            logger.error("No valid dataset available")
-            # Salva l'errore nel Context Store
-            store = ContextStore.get_instance()
-            if mode == "correlation":
-                store.save_json("correlation_matrix", error_result)
-            elif mode == "ranking":
-                store.save_json("impact_ranking", error_result)
-            else:  # outliers
-                store.save_json("outlier_report", error_result)
-            return json.dumps(error_result)
-        
-        # Normalizza i nomi delle colonne
-        try:
-            # Converti tutti i nomi di colonna a stringhe e rimuovi spazi
-            unified_dataset.columns = [str(col).strip() for col in unified_dataset.columns]
-            logger.info(f"Normalized column names: {unified_dataset.columns.tolist()}")
-        except Exception as e:
-            logger.error(f"Error normalizing columns: {e}")
+                    logger.error(f"Error loading from Context Store reference: {e}")
+            
+            # Estrai CSV data se presente
+            if "df_csv" in input_data and input_data["df_csv"]:
+                try:
+                    from io import StringIO
+                    df_csv = input_data["df_csv"]
+                    if isinstance(df_csv, dict) and "path" in df_csv:
+                        # È un riferimento al Context Store
+                        store = ContextStore.get_instance()
+                        try:
+                            path_parts = df_csv["path"].split("/")
+                            artifact_name = path_parts[-1].split(".")[0]
+                            unified_dataset = store.load_dataframe(artifact_name)
+                        except Exception as e:
+                            logger.error(f"Error loading from Context Store path: {e}")
+                    else:
+                        # È un contenuto CSV diretto
+                        unified_dataset = pd.read_csv(StringIO(input_data["df_csv"]))
+                        # Salva nel Context Store
+                        store = ContextStore.get_instance()
+                        store.save_dataframe("unified_dataset", unified_dataset)
+                except Exception as e:
+                    logger.error(f"Error parsing df_csv: {e}")
+                    
+        # Gestione per casi speciali di input non standard
+        if isinstance(input_data, dict) and 'description' in input_data and 'type' in input_data:
+        # Rileva tentativi di rilevamento outlier con formato non standard
+            if input_data.get('type') in ['outlier detection', 'outliers']:
+                logger.info("Detected non-standard outlier detection request, converting to standard format")
+                mode = "outliers"
+                # Usa kpi di default se non specificato
+                if 'kpi' not in input_data:
+                    kpi = "value_speed"  # o recupera dal context store
         
         # Assicurati che il KPI esista nel dataset
         kpi_ok = True
         if unified_dataset is not None and kpi not in unified_dataset.columns:
             logger.warning(f"KPI column '{kpi}' not found in dataset")
-            logger.info(f"Available columns: {unified_dataset.columns.tolist()}")
             kpi_ok = False
             # Cerca una colonna che potrebbe essere il KPI
             value_cols = [col for col in unified_dataset.columns if col.startswith("value_")]
@@ -456,93 +464,59 @@ class CrossStatEngineTool(BaseTool):
                         store.save_json("outlier_report", error_result)
                     return json.dumps(error_result)
         
-        try:
-            # Esecuzione in base alla modalità selezionata
+        # Converti in CSV per run
+        if unified_dataset is not None:
+            df_csv = unified_dataset.to_csv(index=False)
+            logger.info(f"Using parameters: kpi={kpi}, mode={mode}, dataset shape={unified_dataset.shape}")
+        else:
+            # Errore: non abbiamo un dataset
+            error_result = {
+                ERROR_STATE_KEY: True,
+                ERROR_MESSAGE_KEY: "Nessun dataset valido disponibile",
+                USER_MESSAGE_KEY: "Non è stato possibile caricare o creare un dataset valido. Verifica che i file CSV siano presenti e nel formato corretto."
+            }
+            store = ContextStore.get_instance()
             if mode == "correlation":
-                try:
-                    corr = correlation_matrix(unified_dataset, kpi=kpi)
-                    result = corr.to_json(orient="records")
-                    # Salva nel Context Store
-                    store = ContextStore.get_instance()
-                    store.save_json("correlation_matrix", json.loads(result))
-                    return result
-                except Exception as e:
-                    logger.error(f"Error in correlation_matrix: {e}", exc_info=True)
-                    error_result = {
-                        ERROR_STATE_KEY: True,
-                        ERROR_MESSAGE_KEY: str(e),
-                        USER_MESSAGE_KEY: "Si è verificato un errore durante il calcolo delle correlazioni. Assicurati che i driver contengano dati numerici validi.",
-                        "drivers": []
-                    }
-                    # Salva il fallback nel Context Store
-                    store = ContextStore.get_instance()
-                    store.save_json("correlation_matrix", error_result)
-                    return json.dumps(error_result)
-                    
+                store.save_json("correlation_matrix", error_result)
             elif mode == "ranking":
+                store.save_json("impact_ranking", error_result)
+            else:  # outliers
+                store.save_json("outlier_report", error_result)
+            return json.dumps(error_result)
+        
+        try:
+            # Tentativo di esecuzione con il dataset corretto
+            result = self.run(df_csv=df_csv, kpi=kpi, mode=mode, top_k=top_k)
+            
+            # Verifica se il risultato contiene già un errore
+            if isinstance(result, str):
                 try:
-                    corr_df = correlation_matrix(unified_dataset, kpi=kpi)
-                    ranked = impact_ranking(corr_df, top_k=top_k)
-                    result = json.dumps(
-                        {"kpi_name": kpi, "ranking": ranked, "success": True},
-                        ensure_ascii=False,
-                        indent=2,
-                    )
-                    # Salva nel Context Store
-                    store = ContextStore.get_instance()
-                    store.save_json("impact_ranking", json.loads(result))
-                    return result
-                except Exception as e:
-                    logger.error(f"Error in impact_ranking: {e}", exc_info=True)
-                    error_result = {
-                        ERROR_STATE_KEY: True,
-                        ERROR_MESSAGE_KEY: str(e),
-                        USER_MESSAGE_KEY: "Si è verificato un errore durante la creazione del ranking dei driver. Verifica che ci siano sufficienti dati per l'analisi statistica.",
-                        "kpi_name": kpi, 
-                        "ranking": []
-                    }
-                    # Salva il fallback nel Context Store
-                    store = ContextStore.get_instance()
-                    store.save_json("impact_ranking", error_result)
-                    return json.dumps(error_result)
-                    
+                    result_obj = json.loads(result)
+                    if isinstance(result_obj, dict) and result_obj.get(ERROR_STATE_KEY, False):
+                        # Già contiene un errore, passa avanti
+                        pass
+                    else:
+                        # Aggiungi flag di successo
+                        if isinstance(result_obj, dict):
+                            result_obj["success"] = True
+                            result = json.dumps(result_obj)
+                except:
+                    # Non è JSON o parsing fallito, lascia invariato
+                    pass
+            
+            # Salva anche il risultato nel Context Store
+            store = ContextStore.get_instance()
+            if mode == "correlation":
+                corr_data = json.loads(result) if isinstance(result, str) else result
+                store.save_json("correlation_matrix", corr_data)
+            elif mode == "ranking":
+                ranking_data = json.loads(result) if isinstance(result, str) else result
+                store.save_json("impact_ranking", ranking_data)
             elif mode == "outliers":
-                try:
-                    report = outlier_report(unified_dataset, kpi=kpi)
-                    # Assicurati che la struttura sia sempre corretta
-                    if "outliers" not in report:
-                        report["outliers"] = []
-                    if "kpi" not in report:
-                        report["kpi"] = kpi
-                    report["success"] = True
-                    report["summary"] = f"Found {len(report['outliers'])} outliers across {len(set(o.get('driver', '') for o in report['outliers']))} drivers"
-                    
-                    result = json.dumps(report, ensure_ascii=False, indent=2)
-                    # Salva nel Context Store
-                    store = ContextStore.get_instance()
-                    store.save_json("outlier_report", json.loads(result))
-                    return result
-                except Exception as e:
-                    logger.error(f"Error in outlier_report: {e}", exc_info=True)
-                    error_result = {
-                        ERROR_STATE_KEY: True,
-                        ERROR_MESSAGE_KEY: str(e),
-                        USER_MESSAGE_KEY: "Si è verificato un errore durante il rilevamento degli outlier. Verifica che il dataset contenga sufficienti dati validi.",
-                        "kpi": kpi, 
-                        "outliers": []
-                    }
-                    # Salva il fallback nel Context Store
-                    store = ContextStore.get_instance()
-                    store.save_json("outlier_report", error_result)
-                    return json.dumps(error_result)
-            else:
-                error_result = {
-                    ERROR_STATE_KEY: True,
-                    ERROR_MESSAGE_KEY: f"Invalid mode: {mode}",
-                    USER_MESSAGE_KEY: f"Modalità '{mode}' non valida. Le modalità disponibili sono: 'correlation', 'ranking', 'outliers'."
-                }
-                return json.dumps(error_result)
+                outlier_data = json.loads(result) if isinstance(result, str) else result
+                store.save_json("outlier_report", outlier_data)
                 
+            return result
         except Exception as e:
             error_msg = f"ERROR executing CrossStatEngineTool: {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -638,43 +612,8 @@ class CrossStatEngineTool(BaseTool):
         JSON string result – CrewAI converts to python dict automatically.
         """
         try:
-            # Converti df_csv in DataFrame
-            if isinstance(df_csv, str):
-                # Controlla se è un percorso file
-                if df_csv.endswith('.csv') or '\\' in df_csv or '/' in df_csv:
-                    path = Path(df_csv)
-                    if path.exists():
-                        df = pd.read_csv(path)
-                        logger.info(f"Loaded DataFrame from file: {path}")
-                    else:
-                        # Prova a caricare dal Context Store
-                        store = ContextStore.get_instance()
-                        try:
-                            df = store.load_dataframe("unified_dataset")
-                            logger.info("Loaded DataFrame from Context Store")
-                        except Exception as e:
-                            # Tratta come CSV string
-                            from io import StringIO
-                            df = pd.read_csv(StringIO(df_csv))
-                            logger.info("Parsed DataFrame from CSV string")
-                else:
-                    # Contenuto CSV diretto
-                    from io import StringIO
-                    df = pd.read_csv(StringIO(df_csv))
-                    logger.info("Parsed DataFrame from CSV string")
-            else:
-                # Bytes o altro formato
-                from io import BytesIO
-                df = pd.read_csv(BytesIO(df_csv))
-                logger.info("Parsed DataFrame from CSV bytes")
-            
-            # Normalizza i nomi delle colonne
-            try:
-                # Converti tutti i nomi di colonna a stringhe e rimuovi spazi
-                df.columns = [str(col).strip() for col in df.columns]
-                logger.info(f"Normalized column names: {df.columns.tolist()}")
-            except Exception as e:
-                logger.error(f"Error normalizing columns: {e}")
+            from io import StringIO
+            df = pd.read_csv(StringIO(df_csv)) if isinstance(df_csv, str) else pd.read_csv(df_csv)
             
             # Salva il DataFrame nel Context Store per riferimento futuro
             store = ContextStore.get_instance()
@@ -762,6 +701,8 @@ class CrossStatEngineTool(BaseTool):
                     report["outliers"] = []
                 if "kpi" not in report:
                     report["kpi"] = kpi
+                report["success"] = True
+                report["summary"] = f"Found {len(report['outliers'])} outliers across {len(set(o.get('driver', '') for o in report['outliers']))} drivers"
                 if "success" not in report:
                     report["success"] = True
                     

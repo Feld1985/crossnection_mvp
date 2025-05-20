@@ -98,11 +98,54 @@ class ContextStore:
                 if p.stem.split('.')[-1].startswith('v') and p.stem.split('.')[-1][1:].isdigit()
             ]
             if not existing_versions:
-                raise ValueError(f"No versions found for DataFrame '{name}'")
-            version = max(existing_versions)
-            path = self.session_dir / f"{name}.v{version}.csv"
+                # Prova a cercare nomi simili
+                for pattern in [f"{name}.csv", f"{name}*.csv", f"*{name}*.csv"]:
+                    matches = list(self.session_dir.glob(pattern))
+                    if matches:
+                        path = matches[0]
+                        print(f"Found alternative file for '{name}': {path}")
+                        break
+                else:
+                    # Cerca nel fallback
+                    fallback = Path("examples/driver_csvs/unified_dataset.csv")
+                    if fallback.exists() and name == "unified_dataset":
+                        print(f"Using fallback for {name}: {fallback}")
+                        return pd.read_csv(fallback)
+                    raise ValueError(f"No versions found for DataFrame '{name}'")
+            else:
+                version = max(existing_versions)
+                path = self.session_dir / f"{name}.v{version}.csv"
         
-        return pd.read_csv(path)
+        try:
+            df = pd.read_csv(path)
+            
+            # Verifica se è un DataFrame valido
+            # Verifica che non sia un path invece del contenuto
+            if df.shape[1] == 1:
+                col_name = df.columns[0]
+                first_value = df.iloc[0, 0] if len(df) > 0 else None
+                
+                # Se l'unica colonna è una stringa che sembra un percorso file
+                if isinstance(first_value, str) and ('/' in first_value or '\\' in first_value or first_value.endswith('.csv')):
+                    try:
+                        # Prova a caricare il file effettivo
+                        actual_path = Path(first_value)
+                        if actual_path.exists():
+                            print(f"WARNING: Loaded DataFrame contains file path. Loading actual file: {actual_path}")
+                            return pd.read_csv(actual_path)
+                        else:
+                            print(f"WARNING: DataFrame points to file that doesn't exist: {actual_path}")
+                            # Cerca il file standard come fallback
+                            fallback = Path("examples/driver_csvs/unified_dataset.csv")
+                            if fallback.exists():
+                                print(f"Using fallback: {fallback}")
+                                return pd.read_csv(fallback)
+                    except Exception as e:
+                        print(f"Error trying to load actual file: {e}")
+            
+            return df
+        except Exception as e:
+            raise ValueError(f"Failed to load DataFrame '{name}': {e}")
     
     def save_json(self, name: str, data: Dict[str, Any], version: Optional[int] = None) -> str:
         """Salva dati JSON nel Context Store."""
@@ -162,6 +205,7 @@ class ContextStore:
         ]
     
     def extract_artifact_name(self, ref_path: str) -> str:
+        """Estrae il nome base da un path di riferimento."""
         if not ref_path:
             return ""
             
@@ -177,49 +221,49 @@ class ContextStore:
             
         return base_name
     
-def validate_json_structure(self, name: str, expected_keys: List[str]) -> bool:
-    """Validate that a saved JSON has the expected structure."""
-    try:
-        data = self.load_json(name)
-        return all(key in data for key in expected_keys)
-    except Exception:
-        return False
+    def validate_json_structure(self, name: str, expected_keys: List[str]) -> bool:
+        """Validate that a saved JSON has the expected structure."""
+        try:
+            data = self.load_json(name)
+            return all(key in data for key in expected_keys)
+        except Exception:
+            return False
 
-def get_normalized_impact_ranking(self) -> Dict[str, Any]:
-    """Get a normalized impact ranking with guaranteed structure."""
-    try:
-        data = self.load_json("impact_ranking")
-        if not isinstance(data, dict):
+    def get_normalized_impact_ranking(self) -> Dict[str, Any]:
+        """Get a normalized impact ranking with guaranteed structure."""
+        try:
+            data = self.load_json("impact_ranking")
+            if not isinstance(data, dict):
+                return {"kpi_name": "Default KPI", "ranking": []}
+            if "ranking" not in data:
+                data["ranking"] = []
+            if "kpi_name" not in data:
+                data["kpi_name"] = "Default KPI"
+            return data
+        except Exception:
             return {"kpi_name": "Default KPI", "ranking": []}
-        if "ranking" not in data:
-            data["ranking"] = []
-        if "kpi_name" not in data:
-            data["kpi_name"] = "Default KPI"
-        return data
-    except Exception:
-        return {"kpi_name": "Default KPI", "ranking": []}
-        
-def get_normalized_outlier_report(self) -> Dict[str, Any]:
-    """Get a normalized outlier report with guaranteed structure."""
-    try:
-        data = self.load_json("outlier_report")
-        if not isinstance(data, dict):
+            
+    def get_normalized_outlier_report(self) -> Dict[str, Any]:
+        """Get a normalized outlier report with guaranteed structure."""
+        try:
+            data = self.load_json("outlier_report")
+            if not isinstance(data, dict):
+                return {"outliers": []}
+                
+            if "outliers" not in data:
+                data["outliers"] = []
+            return data
+        except Exception:
             return {"outliers": []}
             
-        if "outliers" not in data:
-            data["outliers"] = []
-        return data
-    except Exception:
-        return {"outliers": []}
-        
-def ensure_artifact_exists(self, name: str, default_value: Any) -> bool:
-    """Ensure that an artifact exists, creating it if needed."""
-    try:
-        self.load_json(name)
-        return True
-    except Exception:
-        if isinstance(default_value, pd.DataFrame):
-            self.save_dataframe(name, default_value)
-        else:
-            self.save_json(name, default_value)
-        return False
+    def ensure_artifact_exists(self, name: str, default_value: Any) -> bool:
+        """Ensure that an artifact exists, creating it if needed."""
+        try:
+            self.load_json(name)
+            return True
+        except Exception:
+            if isinstance(default_value, pd.DataFrame):
+                self.save_dataframe(name, default_value)
+            else:
+                self.save_json(name, default_value)
+            return False

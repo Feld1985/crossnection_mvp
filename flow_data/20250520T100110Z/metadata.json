@@ -1,0 +1,53 @@
+{
+  "session_id": "20250520T100110Z",
+  "created_at": "2025-05-20T10:01:10.226962",
+  "artifacts": {
+    "unified_dataset": {
+      "type": "dataframe",
+      "path": "20250520T100110Z\\unified_dataset.v3.csv",
+      "created_at": "2025-05-20T10:01:26.920457",
+      "version": 3,
+      "shape": [
+        100,
+        5
+      ],
+      "columns": [
+        "join_key",
+        "timestamp",
+        "value_pressure",
+        "value_speed",
+        "value_temperature"
+      ]
+    },
+    "data_report": {
+      "type": "json",
+      "path": "20250520T100110Z\\data_report.v3.json",
+      "created_at": "2025-05-20T10:01:26.921457",
+      "version": 3
+    },
+    "correlation_matrix": {
+      "type": "json",
+      "path": "20250520T100110Z\\correlation_matrix.v2.json",
+      "created_at": "2025-05-20T10:01:36.588822",
+      "version": 2
+    },
+    "outlier_report": {
+      "type": "json",
+      "path": "20250520T100110Z\\outlier_report.v1.json",
+      "created_at": "2025-05-20T10:01:40.669167",
+      "version": 1
+    },
+    "narrative_draft": {
+      "type": "json",
+      "path": "20250520T100110Z\\narrative_draft.v1.json",
+      "created_at": "2025-05-20T10:01:45.166024",
+      "version": 1
+    },
+    "root_cause_report": {
+      "type": "json",
+      "path": "20250520T100110Z\\root_cause_report.v1.json",
+      "created_at": "2025-05-20T10:02:18.821607",
+      "version": 1
+    }
+  }
+}

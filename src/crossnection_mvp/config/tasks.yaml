@@ -10,6 +10,10 @@ profile_validate_dataset:
   description: |
     Profile each uploaded CSV, validate schema consistency, detect missing
     values and basic anomalies. Produce a structured `data_report.json` summarising findings.
+    Always use the cross_data_profiler tool with these exact parameters:
+    - csv_folder: "examples/driver_csvs" or the specified input path
+    - kpi: The name of the KPI column (use the one provided in input)
+    - mode: "full_pipeline"
   input:
     csv_folder: "examples/driver_csvs"  # Default hardcoded
     _original_csv_folder: "{{ csv_folder }}"  # Mantieni riferimento originale

@@ -19,7 +19,7 @@ Design notes
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union, ForwardRef
+from typing import Any, Dict, List, Tuple, Union, Optional
 from pydantic import BaseModel, Field
 
 import json
@@ -33,7 +33,12 @@ from crossnection_mvp.utils.context_store import ContextStore
 __all__ = ["CrossDataProfilerTool"]
 
 class CrossDataProfilerToolSchema(BaseModel):
-    input: Union[str, Dict[str, Any]] = None
+    csv_folder: Optional[str] = Field(None, description="Path to directory containing CSV files")
+    kpi: Optional[str] = Field("value_speed", description="Target KPI column name")
+    mode: Optional[str] = Field("full_pipeline", description="Processing mode")
+    
+    # Backward compatibility
+    input: Optional[Union[str, Dict[str, Any]]] = None
     
     class Config:
         extra = "allow"  # Permette campi aggiuntivi non dichiarati nello schema
@@ -69,64 +74,89 @@ class CrossDataProfilerTool(BaseTool):
             # Adatta la struttura per renderla compatibile
             input = kwargs
             
-        # Intercetta input errati o placeholder comuni
-        if input == "user_uploaded_csv_path" or input == {"input": "user_uploaded_csv_path"} or (
-            isinstance(input, dict) and input.get("input") == "user_uploaded_csv_path"):
-            # Usa l'esempio predefinito
-            input = {"csv_folder": "examples/driver_csvs", "kpi": "value_pressure", "mode": "full_pipeline"}
-            self.print_truncated(f"DEBUG: Detected placeholder input, using default values: {input}")
+        # Gestione parametri di input in formato vario
+        csv_folder = None
+        kpi = "value_speed"  # Default
+        mode = "full_pipeline"  # Default
         
-        # Gestione input da CrewAI con struttura diversa
+        # Estrai parametri dall'input dictionary
         if isinstance(input, dict):
-            # Controlla se l'input ha la struttura CrewAI {"input": {...}}
-            if "input" in input and isinstance(input["input"], dict):
-                input_data = input["input"]
-                self.print_truncated(f"DEBUG: Extracted input data from CrewAI format: {input_data}")
-            # Gestione formato da join_key_strategy task
-            elif "type" in input and isinstance(input["type"], dict) and any(k.startswith("file") for k in input["type"]):
-                print(f"DEBUG: Detected join_key_strategy task format with file list")
-                input_data = {"csv_folder": "examples/driver_csvs", "kpi": "Default KPI", "mode": "full_pipeline"}
-            else:
-                # Input è già un dizionario normale
-                input_data = input
-                self.print_truncated(f"DEBUG: Using input dict directly: {input_data}")
-        elif isinstance(input, str):
-            # Rilevamento contenuto CSV diretto
-            if input.startswith("join_key,timestamp,value") or input.startswith('"join_key,timestamp,value'):
-                print(f"DEBUG: Detected direct CSV content instead of folder path")
-                # Per i contenuti CSV diretti, salva nel Context Store e restituisci il riferimento
-                store = ContextStore.get_instance()
-                from io import StringIO
-                df = pd.read_csv(StringIO(input.replace('"', '')))
-                unified_path = store.save_dataframe("unified_dataset", df)
-                report = {"tables": [], "note": "Direct CSV input used"}
-                report_path = store.save_json("data_report", report)
-                
-                return json.dumps({
-                    "unified_dataset_ref": unified_path,
-                    "data_report_ref": report_path
-                }, ensure_ascii=False)
+            # Input diretto
+            csv_folder = input.get("csv_folder")
             
-            try:
-                # Prova a interpretare come JSON
-                input_data = json.loads(input)
-                self.print_truncated(f"DEBUG: Parsed JSON string to dict: {input_data}")
-            except json.JSONDecodeError:
-                # È una stringa semplice, usa il fallback
-                print(f"DEBUG: Input is a simple string, using as csv_folder: {input}")
-                input_data = {"csv_folder": input, "kpi": "Default KPI", "mode": "full_pipeline"}
-        else:
-            raise ValueError(f"Unexpected input type: {type(input)}")
-        
-        # Estrazione parametri
-        csv_folder = input_data.get("csv_folder", "")
-        print(f"DEBUG: Extracted csv_folder: {csv_folder}")
-        
-            # === INIZIO MODIFICA: Miglioramento della validazione della directory ===
+            # Ricerca in strutture annidate
+            if not csv_folder and "input" in input and isinstance(input["input"], dict):
+                csv_folder = input["input"].get("csv_folder")
+                
+            # Fallback su altri campi potenzialmente utili
+            if not csv_folder:
+                # Prova a estrarre da description o type
+                if input.get("type") == "csv_folder":
+                    csv_folder = "examples/driver_csvs"
+                elif input.get("description") and "driver datasets" in input.get("description", ""):
+                    csv_folder = "examples/driver_csvs"
+            
+            # Estrai altri parametri
+            kpi = input.get("kpi", kpi)
+            mode = input.get("mode", mode)
+            
+            # Verifica input nidificati
+            if "input" in input and isinstance(input["input"], dict):
+                if not csv_folder:
+                    csv_folder = input["input"].get("csv_folder")
+                if "kpi" in input["input"]:
+                    kpi = input["input"].get("kpi", kpi)
+                if "mode" in input["input"]:
+                    mode = input["input"].get("mode", mode)
+            
+        # Intercetta input errati o placeholder comuni
+        if isinstance(input, str) or (isinstance(input, dict) and not csv_folder):
+            if input == "user_uploaded_csv_path" or input == {"input": "user_uploaded_csv_path"} or (
+                isinstance(input, dict) and input.get("input") == "user_uploaded_csv_path"):
+                # Usa l'esempio predefinito
+                csv_folder = "examples/driver_csvs"
+                self.print_truncated(f"DEBUG: Detected placeholder input, using default values")
+            elif isinstance(input, str):
+                # Rilevamento contenuto CSV diretto
+                if input.startswith("join_key,timestamp,value") or input.startswith('"join_key,timestamp,value'):
+                    print(f"DEBUG: Detected direct CSV content instead of folder path")
+                    # Per i contenuti CSV diretti, salva nel Context Store e restituisci il riferimento
+                    store = ContextStore.get_instance()
+                    from io import StringIO
+                    df = pd.read_csv(StringIO(input.replace('"', '')))
+                    unified_path = store.save_dataframe("unified_dataset", df)
+                    report = {"tables": [], "note": "Direct CSV input used"}
+                    report_path = store.save_json("data_report", report)
+                    
+                    return json.dumps({
+                        "unified_dataset_ref": unified_path,
+                        "data_report_ref": report_path
+                    }, ensure_ascii=False)
+                
+                try:
+                    # Prova a interpretare come JSON
+                    input_data = json.loads(input)
+                    if isinstance(input_data, dict):
+                        # Estrai parametri dal JSON
+                        if not csv_folder:
+                            csv_folder = input_data.get("csv_folder")
+                        if "kpi" in input_data:
+                            kpi = input_data.get("kpi", kpi)
+                        if "mode" in input_data:
+                            mode = input_data.get("mode", mode)
+                except json.JSONDecodeError:
+                    # È una stringa semplice, usa il fallback
+                    if not csv_folder:
+                        print(f"DEBUG: Input is a simple string, using as csv_folder: {input}")
+                        csv_folder = input
+            
+        # Fornisci un valore predefinito se csv_folder è ancora None
         if not csv_folder:
-            print("WARNING: csv_folder parameter is empty, using default 'examples/driver_csvs'")
             csv_folder = "examples/driver_csvs"
-        elif isinstance(csv_folder, str) and (csv_folder.endswith('.csv') or csv_folder.endswith('.json')):
+            print(f"WARNING: csv_folder parameter is empty, using default '{csv_folder}'")
+        
+        # Validazione directory
+        if isinstance(csv_folder, str) and (csv_folder.endswith('.csv') or csv_folder.endswith('.json')):
             # Rilevato un file invece di una directory
             print(f"WARNING: csv_folder '{csv_folder}' appears to be a file path, not a directory")
             
@@ -137,25 +167,6 @@ class CrossDataProfilerTool(BaseTool):
                     session_id = Path(csv_folder).parts[0]
                     print(f"INFO: Extracted potential session ID: {session_id}")
                     csv_folder = "examples/driver_csvs"  # Usa la directory di default
-                    
-                    # Carica dal Context Store invece che dal file
-                    store = ContextStore.get_instance()
-                    
-                    # Se si tratta di un riferimento a un dataset unificato, restituisci i dati esistenti
-                    if "unified_dataset" in csv_folder:
-                        # Restituisci direttamente il report esistente se disponibile
-                        try:
-                            unified_dataset = store.load_dataframe("unified_dataset")
-                            data_report = store.load_json("data_report")
-                            unified_path = store.save_dataframe("unified_dataset", unified_dataset)
-                            report_path = store.save_json("data_report", data_report)
-                            
-                            return json.dumps({
-                                "unified_dataset_ref": unified_path,
-                                "data_report_ref": report_path
-                            }, ensure_ascii=False)
-                        except Exception as e:
-                            print(f"WARNING: Failed to load from Context Store: {e}")
                 except Exception as e:
                     print(f"WARNING: Error processing file path reference: {e}")
                     csv_folder = "examples/driver_csvs"  # Fallback alla directory di default
@@ -166,19 +177,8 @@ class CrossDataProfilerTool(BaseTool):
         if csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files", "user_uploaded_csv_path"]:
             print(f"WARNING: Detected invalid path '{csv_folder}', correcting to 'examples/driver_csvs'")
             csv_folder = "examples/driver_csvs"
-        # === FINE MODIFICA ===
         
-        # Validazione e correzione del path
-        if not csv_folder or csv_folder in ["driver_datasets.csv", "user_uploaded_driver_datasets.csv", "uploaded_csv_files", "user_uploaded_csv_path"] or (
-            isinstance(csv_folder, str) and not Path(csv_folder).is_dir() and Path("examples/driver_csvs").is_dir()
-        ):
-            corrected_path = "examples/driver_csvs"
-            print(f"WARNING: csv_folder '{csv_folder}' is not a valid directory, using '{corrected_path}' instead")
-            csv_folder = corrected_path
-        
-        kpi = input_data.get("kpi", "Default KPI")
-        mode = input_data.get("mode", "full_pipeline")
-        
+        # Chiama il metodo run con i parametri estratti
         result = self.run(csv_folder=csv_folder, kpi=kpi, mode=mode)
         
         # Converti result a string se necessario

@@ -5,10 +5,10 @@
 {% if success is defined and success %}
 ## Top-{{ top_drivers|length }} Influencing Drivers
 
-| Rank | Driver | Description | Effect Size | p-value | Strength | Explanation |
-| ---- | ------ | ----------- | ----------- | ------- | -------- | ----------- |
+| Rank | Driver | Description | Effect Size | p-value | Strength | Normal Range | Business Context |
+| ---- | ------ | ----------- | ----------- | ------- | -------- | ------------ | ---------------- |
 {% for d in top_drivers -%}
-| {{ loop.index }} | {{ d.driver_name }} | {{ d.driver_description if d.driver_description is defined else 'No description available' }} | {{ '%.3f' | format(d.score if d.score is defined else d.effect_size) }} | {{ '%.3g' | format(d.p_value) }} | {{ d.strength if d.strength is defined else 'n/a' }} | {{ d.explanation if d.explanation is defined else '' }} |
+| {{ loop.index }} | {{ d.driver_name }} | {{ d.driver_description if d.driver_description is defined else 'No description available' }} | {{ '%.3f' | format(d.score if d.score is defined else d.effect_size) }} | {{ '%.3g' | format(d.p_value) }} | {{ d.strength if d.strength is defined else 'n/a' }} | {{ d.normal_range|join(' - ') if d.normal_range is defined else 'N/A' }} {{ d.unit if d.unit is defined else '' }} | {{ d.business_context if d.business_context is defined else '' }} |
 {% endfor %}
 
 ## Outlier Check
