@@ -1,0 +1,29 @@
+{
+  "session_id": "20250520T112115Z",
+  "created_at": "2025-05-20T11:21:15.320154",
+  "artifacts": {
+    "unified_dataset": {
+      "type": "dataframe",
+      "path": "20250520T112115Z\\unified_dataset.v2.csv",
+      "created_at": "2025-05-20T11:21:25.128661",
+      "version": 2,
+      "shape": [
+        100,
+        5
+      ],
+      "columns": [
+        "join_key",
+        "timestamp",
+        "value_pressure",
+        "value_speed",
+        "value_temperature"
+      ]
+    },
+    "data_report": {
+      "type": "json",
+      "path": "20250520T112115Z\\data_report.v2.json",
+      "created_at": "2025-05-20T11:21:25.131656",
+      "version": 2
+    }
+  }
+}

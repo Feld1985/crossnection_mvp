@@ -1,0 +1,1 @@
+This report identifies the key drivers affecting the KPI 'value_speed' and provides actionable insights based on statistical analysis. The two main drivers analyzed are 'value_pressure' and 'value_temperature'.

@@ -1,0 +1,19 @@
+{
+  "kpi": "value_speed",
+  "outliers": [
+    {
+      "row": 74,
+      "driver": "value_pressure"
+    },
+    {
+      "row": 13,
+      "driver": "value_temperature"
+    },
+    {
+      "row": 79,
+      "driver": "value_temperature"
+    }
+  ],
+  "success": true,
+  "summary": "Found 3 outliers across 2 drivers"
+}

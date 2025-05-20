@@ -23,6 +23,8 @@ The CLI is also invocable via:
 """
 from crossnection_mvp.utils.error_handling import with_robust_error_handling
 from crossnection_mvp.utils.debug_helpers import dump_context_state
+from crossnection_mvp.utils.context_store import ContextStore
+from datetime import datetime
 # Importa e configura il logger OpenAI (aggiungi questa parte)
 try:
     import openai
@@ -121,7 +123,33 @@ def run(
 
     try:
         result = CREW.run(inputs)
-        console.print("[bold green]✔ Analysis completed. Check output directory for the root‑cause report.")
+        console.print("[bold green]✔ Analysis completed.")
+        
+        # Estrazione e salvataggio del report finale
+        try:
+            store = ContextStore.get_instance()
+            report = store.load_json("root_cause_report")
+            
+            if report and "markdown" in report:
+                # Crea directory reports se non esiste
+                reports_dir = Path("reports")
+                reports_dir.mkdir(exist_ok=True)
+                
+                # Nome file con timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"root_cause_report_{timestamp}.md"
+                report_path = reports_dir / filename
+                
+                # Salva il report
+                with open(report_path, "w", encoding="utf-8") as f:
+                    f.write(report["markdown"])
+                
+                console.print(f"[bold green]✔ Report saved to: {report_path}")
+            else:
+                console.print("[yellow]No valid report found in results")
+        except Exception as e:
+            console.print(f"[yellow]Could not save report file: {e}")
+        
         return result
     except Exception as exc:
         console.print(f"[bold red]✖ Error:[/bold red] {exc}")

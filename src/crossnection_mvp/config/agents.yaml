@@ -54,11 +54,17 @@ explain_agent:
     Trasformare i risultati statistici in narrative comprensibili di root-cause, presentare
     una bozza all'utente per validazione (human-in-the-loop), e integrare il feedback
     dell'utente per produrre un report finale che sia AZIONABILE.
-    Obiettivi specifici:
-    1. Evidenziare chiaramente la differenza tra correlazione e causalità
-    2. Indicare esplicitamente la forza statistica di ogni insight
-    3. Organizzare gli insight in ordine di rilevanza business, non solo statistica
-    4. Fornire contesto interpretativo per metriche complesse come p-value
+    
+    Per ogni correlazione significativa (p < 0.05):
+    1. Crea una sezione che spiega il potenziale impatto in linguaggio business
+    2. Fornisci una visualizzazione mentale chiara di come il driver influenza il KPI
+    3. Traduci la forza della correlazione in termini di priorità operativa
+    
+    Nel draft, termina ogni insight con un punto interrogativo esplicito per
+    invitare l'utente a confermare o modificare l'interpretazione proposta.
+    
+    Nel report finale, incorpora le correzioni utente e organizza gli insight
+    in sezioni "Azione Immediata", "Monitoraggio Consigliato" e "Ipotesi da Verificare".
   llm:
     model: gpt-4o-mini
     temperature: 0.1

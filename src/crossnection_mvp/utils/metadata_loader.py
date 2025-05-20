@@ -62,9 +62,9 @@ def get_driver_metadata(
 def enrich_driver_names(
     driver_names: list[str],
     metadata_path: Optional[Path] = None
-) -> Dict[str, str]:
+) -> Dict[str, Dict[str, Any]]:
     """
-    Arricchisce i nomi dei driver con le loro descrizioni.
+    Arricchisce i nomi dei driver con le loro descrizioni complete.
     
     Parameters
     ----------
@@ -75,8 +75,8 @@ def enrich_driver_names(
         
     Returns
     -------
-    Dict[str, str]
-        Dizionario {nome_driver: descrizione}.
+    Dict[str, Dict[str, Any]]
+        Dizionario {nome_driver: metadati_completi}.
     """
     all_metadata = load_driver_metadata(metadata_path)
     drivers_metadata = all_metadata.get("drivers", {})
@@ -89,12 +89,17 @@ def enrich_driver_names(
             base_name = name[6:]  # Rimuovi "value_"
             
         metadata = drivers_metadata.get(base_name, {})
+        
+        # Copia tutti i metadati disponibili
+        enriched[name] = metadata.copy()
+        
+        # Aggiungi descrizione formattata per visualizzazione
         description = metadata.get("description", f"Driver {base_name}")
         unit = metadata.get("unit", "")
         
         if unit:
-            enriched[name] = f"{description} ({unit})"
+            enriched[name]["formatted_description"] = f"{description} ({unit})"
         else:
-            enriched[name] = description
+            enriched[name]["formatted_description"] = description
             
     return enriched
